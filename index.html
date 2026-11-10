@@ -2,7 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DN Servicios" />
   <title>DN Servicios y Tecnologías | Sistema de Gestión</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -11,24 +15,27 @@
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+    body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; -webkit-tap-highlight-color: transparent; }
     .custom-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
     .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    @media screen and (max-width: 768px) {
+      input, select, textarea { font-size: 16px !important; }
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- PANTALLA DE BLOQUEO POR CONTRASEÑA (SEGURIDAD) -->
+  <!-- PANTALLA DE BLOQUEO POR CONTRASEÑA -->
   <div id="pantalla-login" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-8 shadow-2xl text-center space-y-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 sm:p-8 shadow-2xl text-center space-y-6">
       <div class="w-16 h-16 rounded-2xl bg-teal-600/20 border border-teal-500/40 flex items-center justify-center mx-auto text-teal-400 shadow-inner">
         <i data-lucide="shield-lock" class="w-8 h-8"></i>
       </div>
       <div>
         <h2 class="text-xl font-extrabold text-white tracking-tight">DN SERVICIOS Y TECNOLOGÍAS</h2>
-        <p class="text-xs text-slate-400 mt-1">Acceso restringido al sistema de taller</p>
+        <p class="text-xs text-slate-400 mt-1">Técnico Responsable: <strong class="text-teal-400">ANGEL VILLALBA</strong></p>
       </div>
 
       <form id="form-login" class="space-y-4">
@@ -50,7 +57,7 @@
         </div>
         <button
           type="submit"
-          class="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm"
+          class="w-full bg-teal-600 hover:bg-teal-500 active:bg-teal-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm"
         >
           <i data-lucide="unlock" class="w-4 h-4"></i>
           Desbloquear Sistema
@@ -60,24 +67,33 @@
   </div>
 
   <!-- CONTENEDOR PROTEGIDO DEL SISTEMA -->
-  <div id="app-contenido" class="hidden min-h-screen flex-col">
+  <div id="app-contenido" class="hidden min-h-screen flex-col pb-20 md:pb-6">
 
     <!-- BARRA SUPERIOR (HEADER) -->
     <header class="bg-slate-900 text-white border-b border-teal-600/40 sticky top-0 z-30 shadow-lg">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-xl bg-teal-600 flex items-center justify-center shadow-inner">
-            <i data-lucide="cpu" class="w-6 h-6 text-white"></i>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-lg sm:text-xl font-bold tracking-tight">DN SERVICIOS Y TECNOLOGÍAS</h1>
-              <span id="cloud-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600 font-medium">
-                Google Drive Conectado
-              </span>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 shrink-0 rounded-xl bg-teal-600 flex items-center justify-center shadow-inner">
+              <i data-lucide="cpu" class="w-6 h-6 text-white"></i>
             </div>
-            <p class="text-xs text-slate-400">Panel de Control de Taller: Notebooks, Impresoras, Microelectrónica y Software</p>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h1 class="text-lg sm:text-xl font-bold tracking-tight">DN SERVICIOS Y TECNOLOGÍAS</h1>
+                <span id="cloud-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600 font-medium">
+                  Google Drive Conectado
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Panel de Control de Taller · Técnico Responsable: <span class="text-teal-400 font-semibold">ANGEL VILLALBA</span>
+              </p>
+            </div>
           </div>
+
+          <!-- Botón bloquear rápido en móvil -->
+          <button id="btn-bloquear-movil" class="md:hidden inline-flex items-center justify-center bg-slate-800 hover:bg-rose-950 text-slate-300 border border-slate-700 p-2.5 rounded-lg">
+            <i data-lucide="lock" class="w-4 h-4"></i>
+          </button>
         </div>
 
         <!-- Botones de Acción Principales -->
@@ -94,7 +110,7 @@
             <i data-lucide="hard-drive" class="w-4 h-4 text-emerald-400"></i>
             <span class="hidden sm:inline">Google Drive</span>
           </button>
-          <button id="btn-bloquear" class="inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-700 px-3 py-2.5 rounded-lg transition text-sm" title="Bloquear pantalla">
+          <button id="btn-bloquear" class="hidden md:inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-700 px-3 py-2.5 rounded-lg transition text-sm" title="Bloquear pantalla">
             <i data-lucide="lock" class="w-4 h-4"></i>
           </button>
         </div>
@@ -110,15 +126,15 @@
           <div>
             <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Servicios Filtrados</p>
             <p id="kpi-total" class="text-3xl font-extrabold text-slate-900 mt-1">0</p>
-            <p id="kpi-sub-total" class="text-xs text-teal-600 font-medium mt-1">De 0 registrados</p>
+            <p id="kpi-sub-total" class="text-xs text-teal-600 font-medium mt-1">De 0 registrados en total</p>
           </div>
-          <div class="w-12 h-12 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600">
+          <div class="w-12 h-12 shrink-0 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600">
             <i data-lucide="wrench" class="w-6 h-6"></i>
           </div>
         </div>
 
         <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex items-center justify-between">
-          <div class="pr-2">
+          <div class="pr-2 overflow-hidden">
             <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Categoría Top</p>
             <p id="kpi-categoria" class="text-lg font-bold text-slate-900 mt-1 truncate">-</p>
             <p class="text-xs text-slate-500 mt-1">Mayor volumen en vista</p>
@@ -129,7 +145,7 @@
         </div>
 
         <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex items-center justify-between">
-          <div class="pr-2">
+          <div class="pr-2 overflow-hidden">
             <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Marca Más Atendida</p>
             <p id="kpi-marca" class="text-lg font-bold text-slate-900 mt-1 truncate">-</p>
             <p class="text-xs text-slate-500 mt-1">Líder en filtro actual</p>
@@ -140,7 +156,7 @@
         </div>
 
         <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex items-center justify-between">
-          <div class="pr-2">
+          <div class="pr-2 overflow-hidden">
             <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Intervención Principal</p>
             <p id="kpi-intervencion" class="text-sm font-bold text-slate-900 mt-1 line-clamp-2">-</p>
             <p class="text-xs text-slate-500 mt-1">Especialidad dominante</p>
@@ -213,7 +229,11 @@
           <span id="contador-tabla" class="text-xs bg-slate-800 text-teal-300 px-2.5 py-1 rounded-md font-medium">Mostrando 0 registros</span>
         </div>
 
-        <div class="overflow-x-auto custom-scroll">
+        <!-- VISTA MÓVIL (TARJETAS ADAPTABLES EN TELÉFONOS) -->
+        <div id="lista-movil" class="block md:hidden divide-y divide-slate-200"></div>
+
+        <!-- VISTA ESCRITORIO Y TABLETS (TABLA ORIGINAL DE 9 COLUMNAS) -->
+        <div class="hidden md:block overflow-x-auto custom-scroll">
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-slate-800 text-slate-200 text-xs uppercase tracking-wider">
@@ -233,9 +253,14 @@
         </div>
       </section>
     </main>
+
+    <!-- BOTÓN FLOTANTE EN MÓVIL -->
+    <button id="btn-nuevo-flotante" class="md:hidden fixed bottom-5 right-5 z-40 bg-teal-600 active:bg-teal-700 text-white rounded-full p-4 shadow-2xl border-2 border-white flex items-center justify-center">
+      <i data-lucide="plus" class="w-6 h-6"></i>
+    </button>
   </div>
 
-  <!-- MODAL: NUEVO SERVICIO -->
+  <!-- MODAL: NUEVO SERVICIO (INTERFAZ ANTERIOR LIMPIA DE 2 COLUMNAS) -->
   <div id="modal-registro" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
       <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-teal-600/40">
@@ -248,7 +273,7 @@
         </button>
       </div>
 
-      <form id="form-servicio" class="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+      <form id="form-servicio" class="p-6 space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Fecha *</label>
@@ -266,6 +291,7 @@
               <option value="Almacenamiento">Almacenamiento (HDD/SSD/CD)</option>
               <option value="Microelectrónica / Componente">Microelectrónica / Placa</option>
               <option value="Electrónica / Línea Blanca / Periférico">Electrónica / Periférico / Plotter</option>
+              <option value="Impresiones / Corte Plotter / Trabajos Prácticos">Impresiones / Corte Plotter / Trabajos Prácticos</option>
             </select>
           </div>
         </div>
@@ -277,20 +303,48 @@
           </div>
           <div>
             <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Modelo *</label>
-            <input type="text" id="inp-modelo" placeholder="Ej. EcoTank L3250, Aspire 3..." required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+            <input type="text" id="inp-modelo" placeholder="Ej. EcoTank L3110, Aspire 3..." required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
           </div>
         </div>
 
+        <!-- SELECCIÓN DE 1 O VARIAS INTERVENCIONES -->
         <div>
-          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Tipo de Intervención *</label>
-          <select id="inp-intervencion" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
-            <option value="Mantenimiento Físico / Limpieza / Reflux">Mantenimiento Físico / Limpieza / Reflux</option>
-            <option value="Software / Sistema Operativo / Backup">Software / Sistema Operativo / Backup</option>
-            <option value="Reemplazo de Repuesto / Hardware">Reemplazo de Repuesto / Hardware</option>
-            <option value="Microelectrónica / Reparación de Placa">Microelectrónica / Reparación de Placa</option>
-            <option value="Instalación / Conectividad / Redes">Instalación / Conectividad / Redes</option>
-            <option value="Desbloqueo / FRP / Firmware">Desbloqueo / FRP / Firmware</option>
-          </select>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Tipo de Intervención (Puedes marcar una o más) *</label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-teal-500 cursor-pointer text-xs font-medium text-slate-700">
+              <input type="checkbox" name="intervencion-check" value="Mantenimiento Físico / Limpieza" checked class="w-4 h-4 accent-teal-600 rounded" />
+              <span>Mantenimiento Físico / Limpieza</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-teal-500 cursor-pointer text-xs font-medium text-slate-700">
+              <input type="checkbox" name="intervencion-check" value="Reemplazo de Repuesto / Hardware" class="w-4 h-4 accent-teal-600 rounded" />
+              <span>Reemplazo de Repuesto / Hardware</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-teal-500 cursor-pointer text-xs font-medium text-slate-700">
+              <input type="checkbox" name="intervencion-check" value="Reset de Software / Contadores" class="w-4 h-4 accent-teal-600 rounded" />
+              <span>Reset de Software / Contadores</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-teal-500 cursor-pointer text-xs font-medium text-slate-700">
+              <input type="checkbox" name="intervencion-check" value="Software / Sistema Operativo / Backup" class="w-4 h-4 accent-teal-600 rounded" />
+              <span>Software / Sistema Operativo / Backup</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-teal-500 cursor-pointer text-xs font-medium text-slate-700">
+              <input type="checkbox" name="intervencion-check" value="Microelectrónica / Reparación de Placa" class="w-4 h-4 accent-teal-600 rounded" />
+              <span>Microelectrónica / Reparación de Placa</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-teal-500 cursor-pointer text-xs font-medium text-slate-700">
+              <input type="checkbox" name="intervencion-check" value="Instalación / Conectividad / Redes" class="w-4 h-4 accent-teal-600 rounded" />
+              <span>Instalación / Conectividad / Redes</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-teal-500 cursor-pointer text-xs font-medium text-slate-700">
+              <input type="checkbox" name="intervencion-check" value="Desbloqueo / FRP / Firmware" class="w-4 h-4 accent-teal-600 rounded" />
+              <span>Desbloqueo / FRP / Firmware</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-teal-500 cursor-pointer text-xs font-medium text-slate-700">
+              <input type="checkbox" name="intervencion-check" value="Impresión / Corte Plotter / Trabajo Práctico" class="w-4 h-4 accent-teal-600 rounded" />
+              <span>Impresión / Corte Plotter / Trabajo Práctico</span>
+            </label>
+          </div>
+          <p id="error-intervencion" class="text-xs text-rose-600 font-semibold mt-1 hidden">Selecciona al menos un tipo de intervención.</p>
         </div>
 
         <div>
@@ -354,6 +408,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=99"></script>
+  <script src="app.js?v=101"></script>
 </body>
 </html>
