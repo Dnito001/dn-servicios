@@ -1,4 +1,4 @@
-const PIN_ACCESO = "945166";
+const PIN_ACCESO = "000000";
 const AUTH_SESSION_KEY = "dn_servicios_autenticado";
 const STORAGE_KEY = "dn_servicios_db_v1";
 const DRIVE_URL_KEY = "dn_servicios_drive_url";
