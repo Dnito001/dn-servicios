@@ -1,11 +1,12 @@
-const PIN_ACCESO = "000"; 
+const PIN_ACCESO = "000";
 const AUTH_SESSION_KEY = "dn_servicios_autenticado";
-const STORAGE_KEY = "dn_servicios_db_v3";
+const STORAGE_KEY = "dn_servicios_db_v4";
 const DRIVE_URL_KEY = "dn_servicios_drive_url";
 
 const DEFAULT_DRIVE_URL = "https://script.google.com/macros/s/AKfycbxezjx2ilDKOrdGQXrE3bHUO3cnMnMFDoDl3FJ7SX1xGTU-HmLXqWHrNB3h2IzcIrPF-g/exec";
 
-const DATOS_INICIALES = [
+// 58 REGISTROS HISTÓRICOS + LOS 3 NUEVOS QUE CARGASTE (TOTAL: 61)
+const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", estado: "Entregado", notas: "Suite gráfica completa" },
   { id: "SER-003", fecha: "10/03/2026", categoria: "Electrónica / Línea Blanca / Periférico", marca: "Silhouette", modelo: "Cameo + Sublimadoras", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento preventivo de plotter Cameo y máquinas de sublimación", repuestos: "Ninguno", estado: "Entregado", notas: "" },
@@ -63,18 +64,32 @@ const DATOS_INICIALES = [
   { id: "SER-055", fecha: "05/11/2026", categoria: "Notebook / Laptop", marca: "Acer", modelo: "Laptop Acer", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Diagnóstico y reparación de laptop Acer que no encendía", repuestos: "Ninguno", estado: "Entregado", notas: "Cliente: Adalberto" },
   { id: "SER-056", fecha: "06/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L380", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware + Reset de Software / Contadores", trabajo: "Limpieza completa, reset de contador y cambio de almohadillas", repuestos: "Almohadillas", estado: "Entregado", notas: "" },
   { id: "SER-057", fecha: "06/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3110", intervencion: "Reemplazo de Repuesto / Hardware + Mantenimiento Físico / Limpieza", trabajo: "Cambio de cabezal de impresión, cable flex y limpieza general", repuestos: "Cabezal y Flex", estado: "Entregado", notas: "Cliente: Adalberto" },
-  { id: "SER-058", fecha: "07/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de batería interna de laptop HP", repuestos: "Batería HP", estado: "Entregado", notas: "" }
+  { id: "SER-058", fecha: "07/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de batería interna de laptop HP", repuestos: "Batería HP", estado: "Entregado", notas: "" },
+  { id: "SER-059", fecha: "09/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "HP 250 G5", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de Teclado", repuestos: "Teclado en Ingles para HP 250 G5", estado: "Entregado", notas: "Laptop del Local" },
+  { id: "SER-060", fecha: "10/11/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP 664", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho de tinta negra", repuestos: "Tinta color Negro", estado: "Entregado", notas: "15.000 Gs" },
+  { id: "SER-061", fecha: "10/11/2026", categoria: "Impresiones / Corte Plotter / Trabajos Prácticos", marca: "Genérico", modelo: "Documento Word", intervencion: "Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Digitalización y escaneo de documentos a formato PDF / imagen", repuestos: "Ninguno", estado: "Entregado", notas: "-" }
 ];
 
 let servicios = [];
 let driveUrl = localStorage.getItem(DRIVE_URL_KEY) || DEFAULT_DRIVE_URL;
+
+function normalizarFecha(f) {
+  if (!f) return "";
+  const str = String(f).trim();
+  if (str.includes("T")) {
+    const soloFecha = str.split("T")[0];
+    const partes = soloFecha.split("-");
+    if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
+  return str;
+}
 
 function inicializarIconos() {
   if (window.lucide && typeof lucide.createIcons === "function") {
     try {
       lucide.createIcons();
     } catch (e) {
-      console.warn("Lucide no pudo inicializarse:", e);
+      console.warn("Lucide:", e);
     }
   }
 }
@@ -85,9 +100,6 @@ document.addEventListener("DOMContentLoaded", () => {
   configurarEventos();
 });
 
-// ============================================================================
-// NORMALIZACIÓN AUTOMÁTICA (QUITA REFLUX Y LIMPIA NOTAS DE TÉCNICO EN TABLA)
-// ============================================================================
 function normalizarRegistros(lista) {
   return lista.map((item) => {
     let inter = item.intervencion || "Mantenimiento Físico / Limpieza";
@@ -101,7 +113,7 @@ function normalizarRegistros(lista) {
 
     return {
       id: item.id,
-      fecha: item.fecha,
+      fecha: normalizarFecha(item.fecha),
       categoria: item.categoria,
       marca: item.marca,
       modelo: item.modelo,
@@ -114,9 +126,6 @@ function normalizarRegistros(lista) {
   });
 }
 
-// ============================================================================
-// CONTROL DE ACCESO
-// ============================================================================
 function configurarSeguridad() {
   const pantallaLogin = document.getElementById("pantalla-login");
   const appContenido = document.getElementById("app-contenido");
@@ -167,9 +176,14 @@ function configurarSeguridad() {
 function cargarBaseDeDatos() {
   const guardados = localStorage.getItem(STORAGE_KEY);
   if (guardados) {
-    servicios = normalizarRegistros(JSON.parse(guardados));
+    try {
+      const parsed = JSON.parse(guardados);
+      servicios = normalizarRegistros(fusionarConMaestros(parsed));
+    } catch (e) {
+      servicios = normalizarRegistros([...DATOS_MAESTROS]);
+    }
   } else {
-    servicios = normalizarRegistros([...DATOS_INICIALES]);
+    servicios = normalizarRegistros([...DATOS_MAESTROS]);
   }
   guardarLocal();
 
@@ -183,6 +197,18 @@ function cargarBaseDeDatos() {
   aplicarFiltros();
 }
 
+// Fusiona los registros sin perder nunca la lista completa
+function fusionarConMaestros(listaEntrante) {
+  const mapa = new Map();
+  DATOS_MAESTROS.forEach((m) => mapa.set(m.id, m));
+  listaEntrante.forEach((item) => mapa.set(item.id, item));
+  return Array.from(mapa.values()).sort((a, b) => {
+    const numA = parseInt(String(a.id).replace(/\D/g, "")) || 0;
+    const numB = parseInt(String(b.id).replace(/\D/g, "")) || 0;
+    return numA - numB;
+  });
+}
+
 function guardarLocal() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(servicios));
 }
@@ -194,7 +220,7 @@ function obtenerIntervencionesUnicas() {
       .split("+")
       .map((x) => x.trim())
       .filter(Boolean)
-      .forEach((parte) => conjunto.add(parte));
+      .forEach((p) => conjunto.add(p));
   });
   return [...conjunto].sort();
 }
@@ -289,7 +315,6 @@ function renderizarVista(lista) {
 
   const invertidos = [...lista].reverse();
 
-  // Vista adaptable para teléfonos móviles
   if (listaMovil) {
     listaMovil.innerHTML = invertidos
       .map(
@@ -322,7 +347,6 @@ function renderizarVista(lista) {
       .join("");
   }
 
-  // Vista original de Tabla de 9 columnas para PC y Tablets
   if (tbody) {
     tbody.innerHTML = invertidos
       .map(
@@ -409,8 +433,11 @@ function formatearFechaInput(yyyy_mm_dd) {
 }
 
 function generarNuevoID() {
-  const num = servicios.length + 1;
-  return `SER-${String(num).padStart(3, "0")}`;
+  const maxNum = servicios.reduce((acc, s) => {
+    const n = parseInt(String(s.id).replace(/\D/g, "")) || 0;
+    return n > acc ? n : acc;
+  }, 0);
+  return `SER-${String(maxNum + 1).padStart(3, "0")}`;
 }
 
 function configurarEventos() {
@@ -554,9 +581,6 @@ function configurarEventos() {
   }
 }
 
-// ============================================================================
-// CONEXIÓN CON GOOGLE DRIVE
-// ============================================================================
 function actualizarBadgeDrive(conectado) {
   const badge = document.getElementById("cloud-badge");
   if (!badge) return;
@@ -583,7 +607,7 @@ async function enviarFilaADrive(registro) {
 
 async function subirBaseCompletaADrive() {
   const urlInput = document.getElementById("inp-drive-url").value.trim();
-  if (!urlInput) return alert("Primero pega la URL de tu Google Apps Script.");
+  if (!urlInput) return alert("Pega la URL de tu Google Apps Script.");
   driveUrl = urlInput;
   localStorage.setItem(DRIVE_URL_KEY, driveUrl);
 
@@ -595,7 +619,7 @@ async function subirBaseCompletaADrive() {
       body: JSON.stringify({ action: "bulk", rows: servicios })
     });
     actualizarBadgeDrive(true);
-    alert("¡Los servicios fueron enviados a tu hoja de Google Drive correctamente!");
+    alert("¡Los 61 servicios fueron enviados a tu Google Drive!");
   } catch (e) {
     alert("Error al subir a Google Drive.");
   }
@@ -606,12 +630,12 @@ async function sincronizarDesdeDrive() {
     const res = await fetch(driveUrl);
     const data = await res.json();
     if (Array.isArray(data) && data.length > 0) {
-      servicios = normalizarRegistros(data);
+      servicios = normalizarRegistros(fusionarConMaestros(data));
       guardarLocal();
       poblarSelectores();
       aplicarFiltros();
     }
   } catch (e) {
-    console.log("Usando respaldo local.");
+    console.log("Usando base completa local.");
   }
 }
