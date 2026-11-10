@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DN Servicios y Tecnologías | Sistema de Gestión</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+    .custom-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- PANTALLA DE BLOQUEO POR CONTRASEÑA (SEGURIDAD) -->
+  <div id="pantalla-login" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-8 shadow-2xl text-center space-y-6">
+      <div class="w-16 h-16 rounded-2xl bg-teal-600/20 border border-teal-500/40 flex items-center justify-center mx-auto text-teal-400 shadow-inner">
+        <i data-lucide="shield-lock" class="w-8 h-8"></i>
+      </div>
+      <div>
+        <h2 class="text-xl font-extrabold text-white tracking-tight">DN SERVICIOS Y TECNOLOGÍAS</h2>
+        <p class="text-xs text-slate-400 mt-1">Acceso restringido al sistema de taller</p>
+      </div>
+
+      <form id="form-login" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Ingresa el PIN de Seguridad</label>
+          <input
+            type="password"
+            id="inp-password"
+            inputmode="numeric"
+            maxlength="6"
+            placeholder="••••••"
+            required
+            autofocus
+            class="w-full text-center tracking-[0.5em] text-2xl font-extrabold py-3 px-4 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+          />
+          <p id="error-login" class="text-xs text-rose-400 font-semibold mt-2 hidden">
+            Contraseña incorrecta. Intenta nuevamente.
+          </p>
+        </div>
+        <button
+          type="submit"
+          class="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm"
+        >
+          <i data-lucide="unlock" class="w-4 h-4"></i>
+          Desbloquear Sistema
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR PROTEGIDO DEL SISTEMA -->
+  <div id="app-contenido" class="hidden min-h-screen flex-col">
+
+    <!-- BARRA SUPERIOR (HEADER) -->
+    <header class="bg-slate-900 text-white border-b border-teal-600/40 sticky top-0 z-30 shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-teal-600 flex items-center justify-center shadow-inner">
+            <i data-lucide="cpu" class="w-6 h-6 text-white"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-lg sm:text-xl font-bold tracking-tight">DN SERVICIOS Y TECNOLOGÍAS</h1>
+              <span id="cloud-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600 font-medium">
+                Google Drive Conectado
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Panel de Control de Taller: Notebooks, Impresoras, Microelectrónica y Software</p>
+          </div>
+        </div>
+
+        <!-- Botones de Acción Principales -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btn-nuevo" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-500 text-white font-semibold px-4 py-2.5 rounded-lg shadow transition text-sm">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            Nuevo Servicio
+          </button>
+          <button id="btn-exportar" class="inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2.5 rounded-lg transition text-sm">
+            <i data-lucide="download" class="w-4 h-4 text-teal-400"></i>
+            Exportar CSV
+          </button>
+          <button id="btn-config-drive" class="inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2.5 rounded-lg transition text-sm" title="Conectar con Google Drive">
+            <i data-lucide="hard-drive" class="w-4 h-4 text-emerald-400"></i>
+            <span class="hidden sm:inline">Google Drive</span>
+          </button>
+          <button id="btn-bloquear" class="inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-700 px-3 py-2.5 rounded-lg transition text-sm" title="Bloquear pantalla">
+            <i data-lucide="lock" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+      <!-- TARJETAS DE KPIs EN VIVO -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Servicios Filtrados</p>
+            <p id="kpi-total" class="text-3xl font-extrabold text-slate-900 mt-1">0</p>
+            <p id="kpi-sub-total" class="text-xs text-teal-600 font-medium mt-1">De 0 registrados</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600">
+            <i data-lucide="wrench" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex items-center justify-between">
+          <div class="pr-2">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Categoría Top</p>
+            <p id="kpi-categoria" class="text-lg font-bold text-slate-900 mt-1 truncate">-</p>
+            <p class="text-xs text-slate-500 mt-1">Mayor volumen en vista</p>
+          </div>
+          <div class="w-12 h-12 shrink-0 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+            <i data-lucide="laptop" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex items-center justify-between">
+          <div class="pr-2">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Marca Más Atendida</p>
+            <p id="kpi-marca" class="text-lg font-bold text-slate-900 mt-1 truncate">-</p>
+            <p class="text-xs text-slate-500 mt-1">Líder en filtro actual</p>
+          </div>
+          <div class="w-12 h-12 shrink-0 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+            <i data-lucide="award" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex items-center justify-between">
+          <div class="pr-2">
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Intervención Principal</p>
+            <p id="kpi-intervencion" class="text-sm font-bold text-slate-900 mt-1 line-clamp-2">-</p>
+            <p class="text-xs text-slate-500 mt-1">Especialidad dominante</p>
+          </div>
+          <div class="w-12 h-12 shrink-0 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
+            <i data-lucide="activity" class="w-6 h-6"></i>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL DE BÚSQUEDA Y FILTROS CRUZADOS -->
+      <section class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4 text-teal-600"></i>
+            <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700">Panel de Filtros Cruzados</h2>
+          </div>
+          <button id="btn-limpiar" class="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg transition self-start sm:self-auto">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            Limpiar Filtros
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div class="lg:col-span-1">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Buscar (Modelo, Trabajo, Cliente)</label>
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input type="text" id="filtro-texto" placeholder="Ej. L3250, SSD, Adalberto..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Categoría del Equipo</label>
+            <select id="filtro-categoria" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white">
+              <option value="">Todas las categorías</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Marca</label>
+            <select id="filtro-marca" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white">
+              <option value="">Todas las marcas</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo de Intervención</label>
+            <select id="filtro-intervencion" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white">
+              <option value="">Todas las intervenciones</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Fecha Exacta</label>
+            <select id="filtro-fecha" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white">
+              <option value="">Todas las fechas</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- TABLA DE VISUALIZACIÓN DINÁMICA -->
+      <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+          <div class="flex items-center gap-2">
+            <i data-lucide="database" class="w-4 h-4 text-teal-400"></i>
+            <h3 class="text-sm font-bold tracking-wide uppercase">Base de Datos de Servicios Técnicos</h3>
+          </div>
+          <span id="contador-tabla" class="text-xs bg-slate-800 text-teal-300 px-2.5 py-1 rounded-md font-medium">Mostrando 0 registros</span>
+        </div>
+
+        <div class="overflow-x-auto custom-scroll">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-800 text-slate-200 text-xs uppercase tracking-wider">
+                <th class="py-3 px-4 font-semibold">ID</th>
+                <th class="py-3 px-4 font-semibold">Fecha</th>
+                <th class="py-3 px-4 font-semibold">Categoría</th>
+                <th class="py-3 px-4 font-semibold">Marca / Modelo</th>
+                <th class="py-3 px-4 font-semibold">Intervención</th>
+                <th class="py-3 px-4 font-semibold">Trabajo Realizado</th>
+                <th class="py-3 px-4 font-semibold">Insumos / Repuestos</th>
+                <th class="py-3 px-4 font-semibold">Cliente / Notas</th>
+                <th class="py-3 px-4 font-semibold text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-body" class="divide-y divide-slate-200 text-sm"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: NUEVO SERVICIO -->
+  <div id="modal-registro" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-teal-600/40">
+        <div class="flex items-center gap-2">
+          <i data-lucide="plus-square" class="w-5 h-5 text-teal-400"></i>
+          <h3 class="font-bold text-base">Registrar Nuevo Servicio Técnico</h3>
+        </div>
+        <button id="btn-cerrar-modal" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-servicio" class="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Fecha *</label>
+            <input type="date" id="inp-fecha" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Categoría del Equipo *</label>
+            <select id="inp-categoria" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="Notebook / Laptop">Notebook / Laptop</option>
+              <option value="Impresora">Impresora</option>
+              <option value="PC Escritorio / Servidor">PC Escritorio / Servidor</option>
+              <option value="Smartphone">Smartphone</option>
+              <option value="Smart TV / Monitor">Smart TV / Monitor</option>
+              <option value="Audio / Consola / Portátil">Audio / Consola / Portátil</option>
+              <option value="Almacenamiento">Almacenamiento (HDD/SSD/CD)</option>
+              <option value="Microelectrónica / Componente">Microelectrónica / Placa</option>
+              <option value="Electrónica / Línea Blanca / Periférico">Electrónica / Periférico / Plotter</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Marca *</label>
+            <input type="text" id="inp-marca" placeholder="Ej. Epson, HP, Acer, Samsung" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Modelo *</label>
+            <input type="text" id="inp-modelo" placeholder="Ej. EcoTank L3250, Aspire 3..." required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Tipo de Intervención *</label>
+          <select id="inp-intervencion" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+            <option value="Mantenimiento Físico / Limpieza / Reflux">Mantenimiento Físico / Limpieza / Reflux</option>
+            <option value="Software / Sistema Operativo / Backup">Software / Sistema Operativo / Backup</option>
+            <option value="Reemplazo de Repuesto / Hardware">Reemplazo de Repuesto / Hardware</option>
+            <option value="Microelectrónica / Reparación de Placa">Microelectrónica / Reparación de Placa</option>
+            <option value="Instalación / Conectividad / Redes">Instalación / Conectividad / Redes</option>
+            <option value="Desbloqueo / FRP / Firmware">Desbloqueo / FRP / Firmware</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Descripción del Trabajo Realizado *</label>
+          <textarea id="inp-trabajo" rows="2" placeholder="Detalla la reparación o servicio efectuado..." required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Repuestos / Insumos</label>
+            <input type="text" id="inp-repuestos" placeholder="Ej. SSD 480GB, Almohadillas, Ninguno" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Cliente / Derivación / Notas</label>
+            <input type="text" id="inp-notas" placeholder="Ej. Adalberto, Contaduría..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
+          <button type="button" id="btn-cancelar" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-100">
+            Cancelar
+          </button>
+          <button type="submit" id="btn-guardar" class="px-5 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold shadow">
+            Guardar Servicio
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CONEXIÓN CON GOOGLE DRIVE -->
+  <div id="modal-drive" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-teal-600/40">
+        <div class="flex items-center gap-2">
+          <i data-lucide="hard-drive" class="w-5 h-5 text-emerald-400"></i>
+          <h3 class="font-bold text-base">Sincronización con Google Drive (Google Sheets)</h3>
+        </div>
+        <button id="btn-cerrar-drive" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-4 text-sm text-slate-600">
+        <p>Tu conector de <strong>Google Apps Script</strong> está configurado para sincronizar en tiempo real con tu Google Drive:</p>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-700 mb-1">URL de tu Web App de Google Drive</label>
+          <input type="url" id="inp-drive-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none" />
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+          <button type="button" id="btn-subir-drive" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold">
+            <i data-lucide="upload-cloud" class="w-4 h-4 text-teal-400"></i>
+            Enviar toda la base actual a mi Drive
+          </button>
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-guardar-drive" class="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold">
+              Guardar Conector
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
