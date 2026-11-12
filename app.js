@@ -1,16 +1,15 @@
 // ============================================================================
 // DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN SISTEMA: 000)
-// SOLUCIÓN DEFINITIVA: BASE INDEPENDIENTE DE FINANZAS (1212) + GUARDADO EN
-// NUBE DE PRECIOS EMBEBIDOS PARA QUE GOOGLE DRIVE JAMÁS LOS BORRE AL SALIR
+// VERSIÓN 9 DEFINITIVA: PERSISTENCIA EXACTA AL REFRESCAR (SIN BORRADO DE IDs
+// REUTILIZADOS NI SOBRESCRITURA DESDE GOOGLE DRIVE AL RECARGAR)
 // ============================================================================
 
 const PIN_ACCESO = "000";
 const PIN_INGRESOS = "1212";
 const TECNICO_NOMBRE = "ANGEL VILLALBA";
-const AUTH_SESSION_KEY = "dn_servicios_autenticado_v8";
-const STORAGE_KEY = "dn_servicios_db_principal_v8";
-const FINANZAS_DB_KEY = "dn_boveda_finanzas_1212_v8"; // Base de datos exclusiva para Finanzas
-const DELETED_IDS_KEY = "dn_servicios_eliminados_v8";
+const AUTH_SESSION_KEY = "dn_servicios_autenticado_v9";
+const STORAGE_KEY = "dn_servicios_db_fija_v9";
+const FINANZAS_DB_KEY = "dn_boveda_finanzas_1212_v9";
 const DRIVE_URL_KEY = "dn_servicios_drive_url";
 
 const DEFAULT_DRIVE_URL = "https://script.google.com/macros/s/AKfycbxezjx2ilDKOrdGQXrE3bHUO3cnMnMFDoDl3FJ7SX1xGTU-HmLXqWHrNB3h2IzcIrPF-g/exec";
@@ -18,7 +17,7 @@ const DEFAULT_DRIVE_URL = "https://script.google.com/macros/s/AKfycbxezjx2ilDKOr
 const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-// REGISTROS HISTÓRICOS COMPLETOS (SER-001 AL SER-085 CON TODOS TUS PRECIOS FIJOS)
+// BASE INICIAL (SOLO SE USA LA PRIMERA VEZ SI NO HAY DATOS GUARDADOS EN EL NAVEGADOR)
 const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
@@ -62,48 +61,8 @@ const DATOS_MAESTROS = [
   { id: "SER-040", fecha: "29/10/2026", categoria: "Electrónica / Línea Blanca / Periférico", marca: "Genérico", modelo: "Jarra Térmica", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Revisión y reparación eléctrica de jarra térmica", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Cliente: Fígaro" },
   { id: "SER-041", fecha: "29/10/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Duro HDD", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Revisión de estado y diagnóstico de disco HDD", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-042", fecha: "29/10/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Gamer / Escritorio", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Reensamblaje y corrección de cableado de PC mal armada", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-043", fecha: "29/10/2026", categoria: "Microelectrónica / Componente", marca: "Genérico", modelo: "Placa Madre Socket CPU", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Diagnóstico de placa que no encendía y enderezado de pines doblados en socket", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-044", fecha: "30/10/2026", categoria: "Audio / Consola / Portátil", marca: "Amazfit", modelo: "Smartwatch Amazfit", intervencion: "Instalación / Conectividad / Redes", trabajo: "Vinculación y configuración de reloj inteligente con smartphone", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-045", fecha: "30/10/2026", categoria: "Impresiones / Corte Plotter / Trabajos Prácticos", marca: "Genérico", modelo: "Servicio de Impresión", intervencion: "Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Impresión de lote de 80 imágenes", repuestos: "Papel y Tinta", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-046", fecha: "31/10/2026", categoria: "Electrónica / Línea Blanca / Periférico", marca: "Genérico", modelo: "Rastreador GPS", intervencion: "Instalación / Conectividad / Redes", trabajo: "Configuración y puesta en marcha de dispositivo GPS", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-047", fecha: "02/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3250", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Limpieza de cabezal por falta de inyección en color amarillo", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-048", fecha: "02/11/2026", categoria: "Smartphone", marca: "Samsung", modelo: "Samsung a Samsung", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Transferencia completa de datos entre teléfonos Samsung", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-049", fecha: "02/11/2026", categoria: "Smartphone", marca: "Xiaomi", modelo: "Redmi a Redmi", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Transferencia completa de datos entre teléfonos Redmi", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-050", fecha: "02/11/2026", categoria: "Smartphone", marca: "Genérico", modelo: "Smartphone Android", intervencion: "Desbloqueo / FRP / Firmware", trabajo: "Configuración inicial de teléfono y recuperación de cuentas", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Cliente Sr." },
-  { id: "SER-051", fecha: "02/11/2026", categoria: "Smartphone", marca: "Honor", modelo: "Honor a Honor", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Transferencia completa de todos los datos de Honor a Honor", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-052", fecha: "02/11/2026", categoria: "PC Escritorio / Servidor", marca: "Dell", modelo: "PC Dell", intervencion: "Reemplazo de Repuesto / Hardware + Software / Sistema Operativo / Backup", trabajo: "Cambio de disco, instalación de sistema operativo y paquete Office", repuestos: "Disco SSD", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-053", fecha: "03/11/2026", categoria: "Audio / Consola / Portátil", marca: "JBL", modelo: "Parlante JBL", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Actualización de firmware de parlante JBL", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-054", fecha: "04/11/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Duro HDD", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Extracción y respaldo de datos de disco duro HDD", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-055", fecha: "05/11/2026", categoria: "Notebook / Laptop", marca: "Acer", modelo: "Laptop Acer", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Diagnóstico y reparación de laptop Acer que no encendía", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Cliente: Adalberto" },
-  { id: "SER-056", fecha: "06/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L380", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware + Reset de Software / Contadores", trabajo: "Limpieza completa, reset de contador y cambio de almohadillas", repuestos: "Almohadillas", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-057", fecha: "06/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3110", intervencion: "Reemplazo de Repuesto / Hardware + Mantenimiento Físico / Limpieza", trabajo: "Cambio de cabezal de impresión, cable flex y limpieza general", repuestos: "Cabezal y Flex", precio: "", estado: "Entregado", notas: "Cliente: Adalberto" },
-  { id: "SER-058", fecha: "07/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de batería interna de laptop HP", repuestos: "Batería HP", precio: "", estado: "Entregado", notas: "" },
-  { id: "SER-059", fecha: "09/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "HP 250 G5", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de Teclado", repuestos: "Teclado en Ingles para HP 250 G5", precio: "", estado: "Entregado", notas: "Laptop del Local" },
-  { id: "SER-060", fecha: "10/11/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP 664", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho de tinta negra", repuestos: "Tinta color Negro", precio: "15.000 Gs", estado: "Entregado", notas: "" },
-  { id: "SER-061", fecha: "10/11/2026", categoria: "Impresiones / Corte Plotter / Trabajos Prácticos", marca: "Genérico", modelo: "Documento Word", intervencion: "Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Digitalización y escaneo de documentos a formato PDF / imagen", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "-" },
-  { id: "SER-078", fecha: "09/11/2026", categoria: "Smartphone", marca: "Honor", modelo: "Honor a Honor", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Pasar todos los datos de teléfono honor a honor", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Teléfono honor a honor" },
-  { id: "SER-079", fecha: "09/11/2026", categoria: "PC Escritorio / Servidor", marca: "Dell", modelo: "PC Dell", intervencion: "Reemplazo de Repuesto / Hardware + Software / Sistema Operativo / Backup", trabajo: "Cambiar disco e instalar sistema con office a PC Dell", repuestos: "Disco SSD", precio: "", estado: "Entregado", notas: "-" },
-  { id: "SER-080", fecha: "10/11/2026", categoria: "Audio / Consola / Portátil", marca: "JBL", modelo: "Parlante JBL", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Actualizar JBL", repuestos: "Ninguno", precio: "20.000 Gs", estado: "Entregado", notas: "-" },
-  { id: "SER-081", fecha: "11/11/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Duro HDD", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Sacar datos de disco HDD", repuestos: "Ninguno", precio: "10.000 Gs", estado: "Entregado", notas: "Disco HDD" },
-  { id: "SER-082", fecha: "12/11/2026", categoria: "Notebook / Laptop", marca: "Acer", modelo: "Laptop Acer", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Laptop acer no encendía de Adalberto", repuestos: "Ninguno", precio: "30.000 Gs", estado: "Entregado", notas: "Adalberto" },
-  { id: "SER-083", fecha: "13/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L380", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware + Reset de Software / Contadores", trabajo: "Impresora Epson l380 limpieza completo y reset de almohadilla con cambio", repuestos: "Almohadillas", precio: "70.000 Gs", estado: "Entregado", notas: "Almohadilla con cambio" },
-  { id: "SER-084", fecha: "13/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3110", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware", trabajo: "Epson l3110 cambio de cabezal y Flex con limpieza de Adalberto", repuestos: "Cabezal + Cable Flex", precio: "100.000 Gs", estado: "Entregado", notas: "Adalberto" },
-  { id: "SER-085", fecha: "14/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware", trabajo: "Laptop HP cambio de batería con mantenimiento completo", repuestos: "Batería", precio: "80.000 Gs", estado: "Entregado", notas: "-" }
+  { id: "SER-043", fecha: "29/10/2026", categoria: "Microelectrónica / Componente", marca: "Genérico", modelo: "Placa Madre Socket CPU", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Diagnóstico de placa que no encendía y enderezado de pines doblados en socket", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" }
 ];
-
-// PRECIOS SEMILLA INICIALES (NUNCA SE PIERDEN)
-const PRECIOS_SEMILLA_FIJOS = {
-  "SER-009": "40.000 Gs",
-  "SER-027": "50.000 Gs",
-  "SER-029": "10.000 Gs",
-  "SER-060": "15.000 Gs",
-  "SER-080": "20.000 Gs",
-  "SER-081": "10.000 Gs",
-  "SER-082": "30.000 Gs",
-  "SER-083": "70.000 Gs",
-  "SER-084": "100.000 Gs",
-  "SER-085": "80.000 Gs"
-};
 
 let servicios = [];
 let ultimosFiltrados = [];
@@ -115,23 +74,14 @@ let ultimoAnchoMovil = window.innerWidth < 768;
 let driveUrl = localStorage.getItem(DRIVE_URL_KEY) || DEFAULT_DRIVE_URL;
 
 // ============================================================================
-// BASE DE DATOS EXCLUSIVA E INDEPENDIENTE PARA LA BÓVEDA DE INGRESOS (1212)
+// BASE DE DATOS INDEPENDIENTE DE FINANZAS (1212) Y PERSISTENCIA FIJA
 // ============================================================================
 function leerBaseFinanzas() {
-  let db = { ...PRECIOS_SEMILLA_FIJOS };
-  const clavesPrevias = [FINANZAS_DB_KEY, "dn_servicios_precios_blindados_v7"];
-  clavesPrevias.forEach((k) => {
-    try {
-      const guardado = JSON.parse(localStorage.getItem(k) || "{}");
-      if (guardado && typeof guardado === "object") {
-        Object.keys(guardado).forEach((id) => {
-          const p = formatearGuaranies(guardado[id]);
-          if (p) db[id.toUpperCase()] = p;
-        });
-      }
-    } catch (e) {}
-  });
-  return db;
+  try {
+    return JSON.parse(localStorage.getItem(FINANZAS_DB_KEY) || "{}");
+  } catch (e) {
+    return {};
+  }
 }
 
 function guardarPrecioEnBaseFinanzas(id, precioStr) {
@@ -149,26 +99,20 @@ function guardarPrecioEnBaseFinanzas(id, precioStr) {
 
 function sincronizarListaConBaseFinanzas(lista) {
   const db = leerBaseFinanzas();
-  let huboCambios = false;
   if (Array.isArray(lista)) {
     lista.forEach((item) => {
       if (!item || !item.id) return;
       const idUp = String(item.id).trim().toUpperCase();
       const pItem = formatearGuaranies(item.precio);
-      if (pItem && db[idUp] !== pItem) {
+      if (pItem) {
         db[idUp] = pItem;
-        huboCambios = true;
       }
     });
   }
-  if (huboCambios) {
-    localStorage.setItem(FINANZAS_DB_KEY, JSON.stringify(db));
-  }
+  localStorage.setItem(FINANZAS_DB_KEY, JSON.stringify(db));
   return db;
 }
 
-// Empaqueta el precio dentro de "notas" al enviar a Google Drive para que Google Sheets
-// lo guarde en la columna "notas" aunque no tenga columna "precio" en el servidor.
 function empaquetarRegistroParaDrive(reg) {
   const copia = {
     id: reg.id,
@@ -307,7 +251,7 @@ function extraerPrecioDeTexto(linea) {
   const regexParentesisGs = /\(\s*(\d{1,3}(?:[.,]\d{3})+|\d{4,9})\s*(?:gs\.?|guaran[ií]es)\s*\)/i;
   const regexExplicito = /(?:\s+[-–:]?\s*|\b)(\d{1,3}(?:[.,]\d{3})+|\d{4,9})\s*(?:gs\.?|guaran[ií]es)\b\.?/i;
   const regexMil = /(?:\s+[-–:]?\s*|\b)(\d{1,4})\s*mil\s*(?:gs\.?)?\s*$/i;
-  const regexMilesFinal = /\s+[-–:]?\s*(\d{1,3}(?:\.\d{3})+)\s*$/;
+  const regexMilesFinal = /\s+[-–:]?\s*(\d{1,3}(?:[.,]\d{3})+|\d{4,8})\s*$/;
 
   const mParen = texto.match(regexParentesisGs);
   if (mParen) {
@@ -519,11 +463,10 @@ function normalizarRegistros(lista) {
     const extTrabajo = extraerPrecioDeTexto(item.trabajo || "");
     const extNotas = extraerPrecioDeTexto(notasRaw);
 
-    // Extrae el precio desde el item, desde el texto o desde la Base Independiente de Finanzas
     const precioDirecto = item.precio ? formatearGuaranies(item.precio) : (extTrabajo.precio || extNotas.precio || "");
     const precioFinal = precioDirecto || dbFinanzas[idLimpio] || "";
 
-    if (precioFinal && dbFinanzas[idLimpio] !== precioFinal) {
+    if (precioFinal) {
       dbFinanzas[idLimpio] = precioFinal;
     }
 
@@ -590,6 +533,7 @@ function configurarSeguridad() {
 
   if (
     sessionStorage.getItem(AUTH_SESSION_KEY) === "true" ||
+    sessionStorage.getItem("dn_servicios_autenticado_v8") === "true" ||
     sessionStorage.getItem("dn_servicios_autenticado_v6") === "true"
   ) {
     sessionStorage.setItem(AUTH_SESSION_KEY, "true");
@@ -625,99 +569,11 @@ function configurarSeguridad() {
   if (btnBloquearMovil) btnBloquearMovil.addEventListener("click", bloquearSistema);
 }
 
-function obtenerIdsEliminados() {
-  try {
-    return JSON.parse(localStorage.getItem(DELETED_IDS_KEY) || localStorage.getItem("dn_servicios_eliminados_v6") || "[]");
-  } catch (e) {
-    return [];
-  }
-}
-
-function registrarIdEliminado(id) {
-  const eliminados = new Set(obtenerIdsEliminados());
-  eliminados.add(String(id).toUpperCase());
-  localStorage.setItem(DELETED_IDS_KEY, JSON.stringify([...eliminados]));
-}
-
-function combinarRegistroSinPerderPrecio(previo, entrante, dbFinanzas) {
-  if (!previo) return entrante;
-  if (!entrante) return previo;
-
-  const idUp = String(entrante.id || previo.id || "").trim().toUpperCase();
-  const extEntranteNotas = extraerPrecioDeTexto(entrante.notas || "");
-  const extPrevioNotas = extraerPrecioDeTexto(previo.notas || "");
-
-  const precioEntrante = formatearGuaranies(entrante.precio) || extEntranteNotas.precio;
-  const precioPrevio = formatearGuaranies(previo.precio) || extPrevioNotas.precio;
-  const precioBoveda = dbFinanzas[idUp] || "";
-
-  const precioDefinitivo = precioPrevio || precioEntrante || precioBoveda || "";
-  if (precioDefinitivo) {
-    dbFinanzas[idUp] = precioDefinitivo;
-  }
-
-  const notaEntranteLimpia = extEntranteNotas.textoSinPrecio;
-  const notaPreviaLimpia = extPrevioNotas.textoSinPrecio;
-
-  return {
-    ...previo,
-    ...entrante,
-    id: idUp,
-    fecha: normalizarFecha(previo.fecha || entrante.fecha),
-    categoria: previo.categoria || entrante.categoria,
-    marca: previo.marca || entrante.marca,
-    modelo: previo.modelo || entrante.modelo,
-    intervencion: previo.intervencion || entrante.intervencion,
-    trabajo: previo.trabajo || entrante.trabajo,
-    repuestos:
-      previo.repuestos && previo.repuestos !== "Ninguno"
-        ? previo.repuestos
-        : entrante.repuestos || "Ninguno",
-    precio: precioDefinitivo,
-    notas:
-      notaPreviaLimpia && notaPreviaLimpia !== "-"
-        ? notaPreviaLimpia
-        : notaEntranteLimpia || ""
-  };
-}
-
-function fusionarConMaestros(listaEntrante) {
-  const eliminados = new Set(obtenerIdsEliminados());
-  const dbFinanzas = sincronizarListaConBaseFinanzas(DATOS_MAESTROS);
-  const mapa = new Map();
-
-  DATOS_MAESTROS.forEach((m) => {
-    const idUp = String(m.id).trim().toUpperCase();
-    if (!eliminados.has(idUp)) {
-      mapa.set(idUp, {
-        ...m,
-        id: idUp,
-        precio: m.precio || dbFinanzas[idUp] || ""
-      });
-    }
-  });
-
-  if (Array.isArray(servicios) && servicios.length > 0) {
-    servicios.forEach((s) => {
-      const idUp = String(s.id || "").trim().toUpperCase();
-      if (idUp.startsWith("SER-") && !eliminados.has(idUp)) {
-        mapa.set(idUp, combinarRegistroSinPerderPrecio(mapa.get(idUp), s, dbFinanzas));
-      }
-    });
-  }
-
-  if (Array.isArray(listaEntrante)) {
-    listaEntrante.forEach((item) => {
-      const idStr = String(item.id || "").trim().toUpperCase();
-      if (idStr.startsWith("SER-") && !eliminados.has(idStr)) {
-        mapa.set(idStr, combinarRegistroSinPerderPrecio(mapa.get(idStr), item, dbFinanzas));
-      }
-    });
-  }
-
-  localStorage.setItem(FINANZAS_DB_KEY, JSON.stringify(dbFinanzas));
-
-  return Array.from(mapa.values()).sort((a, b) => {
+// ============================================================================
+// CARGA Y GUARDADO DIRECTO EN LOCALSTORAGE (SIN FILTROS QUE BORREN REGISTROS)
+// ============================================================================
+function ordenarPorFechaYNumero(lista) {
+  return [...lista].sort((a, b) => {
     const tA = convertirFechaATimestamp(normalizarFecha(a.fecha));
     const tB = convertirFechaATimestamp(normalizarFecha(b.fecha));
     if (tA !== tB) return tA - tB;
@@ -728,29 +584,39 @@ function fusionarConMaestros(listaEntrante) {
 }
 
 function cargarBaseDeDatos() {
-  const clavesHistoricas = [
+  // Limpiar las listas negras antiguas que estaban borrando SER-044..SER-061 al refrescar
+  localStorage.removeItem("dn_servicios_eliminados_v6");
+  localStorage.removeItem("dn_servicios_eliminados_v8");
+
+  let listaCargada = null;
+
+  // Buscar primero en la base fija v9 o en las anteriores
+  const clavesBusqueda = [
     STORAGE_KEY,
+    "dn_servicios_db_principal_v8",
     "dn_servicios_db_v7",
     "dn_servicios_db_v6",
-    "dn_servicios_db_v5",
-    "dn_servicios_db_v4"
+    "dn_servicios_db_v5"
   ];
-  let acumuladosLocales = [];
 
-  clavesHistoricas.forEach((k) => {
+  for (const k of clavesBusqueda) {
     const raw = localStorage.getItem(k);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          sincronizarListaConBaseFinanzas(parsed);
-          acumuladosLocales.push(...parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          listaCargada = parsed;
+          break;
         }
       } catch (e) {}
     }
-  });
+  }
 
-  servicios = normalizarRegistros(fusionarConMaestros(acumuladosLocales));
+  if (!listaCargada) {
+    listaCargada = [...DATOS_MAESTROS];
+  }
+
+  servicios = normalizarRegistros(ordenarPorFechaYNumero(listaCargada));
   guardarLocal();
 
   poblarSelectores();
@@ -759,7 +625,6 @@ function cargarBaseDeDatos() {
   if (driveUrl) {
     localStorage.setItem(DRIVE_URL_KEY, driveUrl);
     actualizarBadgeDrive(true);
-    sincronizarDesdeDrive();
   }
 }
 
@@ -1079,7 +944,6 @@ function actualizarKPIs(filtrados) {
 // BÓVEDA DE INGRESOS Y ESTADÍSTICAS FINANCIERAS (CONTRASEÑA: 1212)
 // ============================================================================
 function calcularEstadisticasIngresos() {
-  const dbFinanzas = leerBaseFinanzas();
   let totalGs = 0;
   let totalConPrecio = 0;
   const porSemana = {};
@@ -1088,8 +952,7 @@ function calcularEstadisticasIngresos() {
   const porCategoria = {};
 
   servicios.forEach((s) => {
-    const precioDeBoveda = s.precio || dbFinanzas[s.id] || "";
-    const monto = obtenerMontoNumerico(precioDeBoveda);
+    const monto = obtenerMontoNumerico(s.precio);
     const semKey = s._semanaKey || "Sin fecha";
     const semLabel = s._semanaLabel || "Semana sin fecha";
     const mesKey = s._mesKey || "Sin mes";
@@ -1382,8 +1245,7 @@ window.abrirEditarServicio = function (id) {
 };
 
 window.eliminarServicio = function (id) {
-  if (!confirm(`¿Seguro que deseas eliminar permanentemente el registro ${id}?`)) return;
-  registrarIdEliminado(id);
+  if (!confirm(`¿Seguro que deseas eliminar el registro ${id}?`)) return;
   guardarPrecioEnBaseFinanzas(id, "");
   servicios = servicios.filter((s) => s.id !== id);
   guardarLocal();
@@ -2079,8 +1941,6 @@ function configurarEventos() {
       const trabajoTxt = ext.precio ? ext.textoSinPrecio : trabajoRaw;
 
       const idRegistro = editId || generarNuevoID(1);
-
-      // Guardar inmediatamente en la Base Independiente de Finanzas (1212)
       guardarPrecioEnBaseFinanzas(idRegistro, precioFinal);
 
       const datosBase = {
@@ -2121,6 +1981,7 @@ function configurarEventos() {
         servicios.push(registroNormalizado);
       }
 
+      servicios = normalizarRegistros(ordenarPorFechaYNumero(servicios));
       guardarLocal();
       poblarSelectores();
       aplicarFiltros();
@@ -2218,6 +2079,7 @@ function configurarEventos() {
 
       const nuevosNormalizados = normalizarRegistros(nuevosCrudos);
       servicios.push(...nuevosNormalizados);
+      servicios = normalizarRegistros(ordenarPorFechaYNumero(servicios));
       guardarLocal();
       poblarSelectores();
       aplicarFiltros();
@@ -2227,7 +2089,7 @@ function configurarEventos() {
       if (driveUrl) {
         respaldarEnDriveSilencioso();
       }
-      alert(`¡Se guardaron ${nuevosNormalizados.length} servicios con sus precios respaldados en la Bóveda y en Drive!`);
+      alert(`¡Se guardaron ${nuevosNormalizados.length} servicios permanentemente!`);
     });
   }
 
@@ -2284,7 +2146,7 @@ function configurarEventos() {
       actualizarBadgeDrive(Boolean(driveUrl));
       modalDrive.classList.add("hidden");
       modalDrive.classList.remove("flex");
-      if (driveUrl) sincronizarDesdeDrive();
+      if (driveUrl) respaldarEnDriveSilencioso();
     });
   }
   const btnSubirDrive = document.getElementById("btn-subir-drive");
@@ -2304,8 +2166,6 @@ function actualizarBadgeDrive(conectado) {
   }
 }
 
-// Envía toda la base de Ángel a Google Drive con el precio embebido en "notas"
-// para que Google Sheets conserve todos los precios en la nube
 async function respaldarEnDriveSilencioso() {
   if (!driveUrl || syncEnCurso) return;
   syncEnCurso = true;
@@ -2344,31 +2204,5 @@ async function subirBaseCompletaADrive() {
 
   await respaldarEnDriveSilencioso();
   actualizarBadgeDrive(true);
-  alert(`¡Sincronización completa! Se guardaron tus ${servicios.length} servicios y todos tus precios en Google Drive.`);
-}
-
-async function sincronizarDesdeDrive() {
-  if (syncEnCurso) return;
-  try {
-    const separador = driveUrl.includes("?") ? "&" : "?";
-    const res = await fetch(`${driveUrl}${separador}t=${Date.now()}`, { cache: "no-store" });
-    const data = await res.json();
-    if (Array.isArray(data) && data.length > 0) {
-      const soloAngel = data.filter((r) => String(r.id || "").toUpperCase().startsWith("SER-"));
-      const cantidadAntes = servicios.length;
-
-      servicios = normalizarRegistros(fusionarConMaestros(soloAngel));
-      guardarLocal();
-      poblarSelectores();
-      aplicarFiltros();
-      if (bovedaDesbloqueada) renderizarPanelIngresos();
-
-      // Si nuestra base local tiene más servicios o precios que Drive, actualiza Drive automáticamente
-      if (servicios.length > soloAngel.length || cantidadAntes > soloAngel.length) {
-        respaldarEnDriveSilencioso();
-      }
-    }
-  } catch (e) {
-    console.log("Usando base completa local de Ángel.");
-  }
+  alert(`¡Sincronización completa! Se enviaron tus ${servicios.length} servicios y todos tus precios a Google Drive.`);
 }
