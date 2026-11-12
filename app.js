@@ -1,23 +1,18 @@
-// ============================================================================
-// DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN SISTEMA: 000)
-// CON BÓVEDA DE INGRESOS (PIN: 1212), BUSCADOR SIN LAG, EDICIÓN Y CARGA SEMANAL
-// ============================================================================
-
 const PIN_ACCESO = "000";
-const PIN_INGRESOS = "1212"; // Contraseña exclusiva para el apartado de ingresos
+const PIN_INGRESOS = "1212"; 
 const TECNICO_NOMBRE = "ANGEL VILLALBA";
 const AUTH_SESSION_KEY = "dn_servicios_autenticado_v6";
-const STORAGE_KEY = "dn_servicios_db_v6";
+const STORAGE_KEY = "dn_servicios_db_v7";
+const PRECIOS_BACKUP_KEY = "dn_servicios_precios_blindados_v7";
 const DELETED_IDS_KEY = "dn_servicios_eliminados_v6";
 const DRIVE_URL_KEY = "dn_servicios_drive_url";
 
 const DEFAULT_DRIVE_URL = "https://script.google.com/macros/s/AKfycbxezjx2ilDKOrdGQXrE3bHUO3cnMnMFDoDl3FJ7SX1xGTU-HmLXqWHrNB3h2IzcIrPF-g/exec";
 
-// Íconos SVG en línea para evitar congelamientos al renderizar la tabla
 const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-// 61 REGISTROS HISTÓRICOS DE ÁNGEL VILLALBA
+// REGISTROS HISTÓRICOS DE ÁNGEL VILLALBA (INCLUYE LOS NUEVOS CON SUS PRECIOS PROTEGIDOS)
 const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
@@ -79,7 +74,16 @@ const DATOS_MAESTROS = [
   { id: "SER-058", fecha: "07/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de batería interna de laptop HP", repuestos: "Batería HP", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-059", fecha: "09/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "HP 250 G5", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de Teclado", repuestos: "Teclado en Ingles para HP 250 G5", precio: "", estado: "Entregado", notas: "Laptop del Local" },
   { id: "SER-060", fecha: "10/11/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP 664", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho de tinta negra", repuestos: "Tinta color Negro", precio: "15.000 Gs", estado: "Entregado", notas: "" },
-  { id: "SER-061", fecha: "10/11/2026", categoria: "Impresiones / Corte Plotter / Trabajos Prácticos", marca: "Genérico", modelo: "Documento Word", intervencion: "Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Digitalización y escaneo de documentos a formato PDF / imagen", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "-" }
+  { id: "SER-061", fecha: "10/11/2026", categoria: "Impresiones / Corte Plotter / Trabajos Prácticos", marca: "Genérico", modelo: "Documento Word", intervencion: "Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Digitalización y escaneo de documentos a formato PDF / imagen", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "-" },
+  // REGISTROS RESTAURADOS CON SUS PRECIOS INTACTOS
+  { id: "SER-078", fecha: "09/11/2026", categoria: "Smartphone", marca: "Honor", modelo: "Honor a Honor", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Pasar todos los datos de teléfono honor a honor", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Teléfono honor a honor" },
+  { id: "SER-079", fecha: "09/11/2026", categoria: "PC Escritorio / Servidor", marca: "Dell", modelo: "PC Dell", intervencion: "Reemplazo de Repuesto / Hardware + Software / Sistema Operativo / Backup", trabajo: "Cambiar disco e instalar sistema con office a PC Dell", repuestos: "Disco SSD", precio: "", estado: "Entregado", notas: "-" },
+  { id: "SER-080", fecha: "10/11/2026", categoria: "Audio / Consola / Portátil", marca: "JBL", modelo: "Parlante JBL", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Actualizar JBL", repuestos: "Ninguno", precio: "20.000 Gs", estado: "Entregado", notas: "-" },
+  { id: "SER-081", fecha: "11/11/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Duro HDD", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Sacar datos de disco HDD", repuestos: "Ninguno", precio: "10.000 Gs", estado: "Entregado", notas: "Disco HDD" },
+  { id: "SER-082", fecha: "12/11/2026", categoria: "Notebook / Laptop", marca: "Acer", modelo: "Laptop Acer", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Laptop acer no encendía de Adalberto", repuestos: "Ninguno", precio: "30.000 Gs", estado: "Entregado", notas: "Adalberto" },
+  { id: "SER-083", fecha: "13/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L380", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware + Reset de Software / Contadores", trabajo: "Impresora Epson l380 limpieza completo y reset de almohadilla con cambio", repuestos: "Almohadillas", precio: "70.000 Gs", estado: "Entregado", notas: "Almohadilla con cambio" },
+  { id: "SER-084", fecha: "13/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3110", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware", trabajo: "Epson l3110 cambio de cabezal y Flex con limpieza de Adalberto", repuestos: "Cabezal + Cable Flex", precio: "100.000 Gs", estado: "Entregado", notas: "Adalberto" },
+  { id: "SER-085", fecha: "14/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware", trabajo: "Laptop HP cambio de batería con mantenimiento completo", repuestos: "Batería", precio: "80.000 Gs", estado: "Entregado", notas: "-" }
 ];
 
 let servicios = [];
@@ -89,6 +93,37 @@ let bovedaDesbloqueada = false;
 let timerBusqueda = null;
 let ultimoAnchoMovil = window.innerWidth < 768;
 let driveUrl = localStorage.getItem(DRIVE_URL_KEY) || DEFAULT_DRIVE_URL;
+
+// ============================================================================
+// COFRE BLINDADO DE PRECIOS (IMPIDE QUE DRIVE BORRE TUS MONTOS EN GS)
+// ============================================================================
+function obtenerMapaPreciosBlindados() {
+  try {
+    return JSON.parse(localStorage.getItem(PRECIOS_BACKUP_KEY) || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+
+function respaldarPreciosEnCofre(lista) {
+  const mapa = obtenerMapaPreciosBlindados();
+  if (Array.isArray(lista)) {
+    lista.forEach((item) => {
+      if (!item || !item.id) return;
+      const idUp = String(item.id).trim().toUpperCase();
+      const precioFmt = formatearGuaranies(item.precio);
+      if (precioFmt) {
+        mapa[idUp] = precioFmt;
+      }
+    });
+  }
+  try {
+    localStorage.setItem(PRECIOS_BACKUP_KEY, JSON.stringify(mapa));
+  } catch (e) {
+    console.warn("Error guardando cofre de precios:", e);
+  }
+  return mapa;
+}
 
 // ============================================================================
 // UTILIDADES DE FECHAS, SEMANAS, MESES Y MONEDA
@@ -152,7 +187,6 @@ function obtenerInfoMes(fechaDDMMYYYY) {
   };
 }
 
-// Calcula la semana exacta (Lunes a Domingo) a la que pertenece cualquier fecha DD/MM/YYYY
 function obtenerInfoSemana(fechaDDMMYYYY) {
   const partes = String(fechaDDMMYYYY ?? "").split("/");
   if (partes.length !== 3) return { key: "", label: "" };
@@ -162,7 +196,7 @@ function obtenerInfoSemana(fechaDDMMYYYY) {
   const fechaObj = new Date(yyyy, mm - 1, dd);
   if (isNaN(fechaObj.getTime())) return { key: "", label: "" };
 
-  const dia = fechaObj.getDay(); // 0 = Domingo, 1 = Lunes
+  const dia = fechaObj.getDay();
   const diffLunes = dia === 0 ? -6 : 1 - dia;
 
   const lunes = new Date(yyyy, mm - 1, dd + diffLunes);
@@ -399,9 +433,11 @@ document.addEventListener("DOMContentLoaded", () => {
   configurarEventos();
 });
 
-// Precalcula todos los metadatos (_dia, _mesKey, _semanaKey, _monto, _busqueda) para velocidad instantánea
 function normalizarRegistros(lista) {
+  const cofrePrecios = obtenerMapaPreciosBlindados();
+
   return lista.map((item) => {
+    const idLimpio = String(item.id || "").trim().toUpperCase();
     let inter = item.intervencion || deducirIntervencion(item.trabajo || "");
     inter = inter.replace(/Mantenimiento Físico \/ Limpieza \/ Reflux/gi, "Mantenimiento Físico / Limpieza");
     inter = inter.replace(/\/ Reflux/gi, "").trim();
@@ -413,11 +449,14 @@ function normalizarRegistros(lista) {
 
     const extTrabajo = extraerPrecioDeTexto(item.trabajo || "");
     const extNotas = extraerPrecioDeTexto(notasRaw);
-    const precioFinal = item.precio ? formatearGuaranies(item.precio) : (extTrabajo.precio || extNotas.precio || "");
+
+    // Prioriza el precio del registro, o del texto, o del cofre blindado local
+    const precioDirecto = item.precio ? formatearGuaranies(item.precio) : (extTrabajo.precio || extNotas.precio || "");
+    const precioFinal = precioDirecto || cofrePrecios[idLimpio] || "";
+
     const trabajoLimpio = (extTrabajo.precio ? extTrabajo.textoSinPrecio : (item.trabajo || "")).trim();
     const notasLimpias = ((extNotas.precio && !item.precio) ? extNotas.textoSinPrecio : notasRaw).trim();
 
-    const idLimpio = String(item.id || "").trim();
     const fechaNorm = normalizarFecha(item.fecha);
     const catLimpia = String(item.categoria || "Notebook / Laptop").trim();
     const marcaLimpia = String(item.marca || "Genérico").trim();
@@ -523,50 +562,61 @@ function registrarIdEliminado(id) {
   localStorage.setItem(DELETED_IDS_KEY, JSON.stringify([...eliminados]));
 }
 
-function cargarBaseDeDatos() {
-  const guardados =
-    localStorage.getItem(STORAGE_KEY) ||
-    localStorage.getItem("dn_servicios_db_v5") ||
-    localStorage.getItem("dn_servicios_db_v4");
+// Combina dos versiones del mismo servicio sin perder jamás un precio ni un dato local
+function combinarRegistroSinPerderPrecio(previo, entrante, cofrePrecios) {
+  if (!previo) return entrante;
+  if (!entrante) return previo;
 
-  if (guardados) {
-    try {
-      const parsed = JSON.parse(guardados);
-      servicios = normalizarRegistros(fusionarConMaestros(parsed));
-    } catch (e) {
-      servicios = normalizarRegistros(fusionarConMaestros([]));
-    }
-  } else {
-    servicios = normalizarRegistros(fusionarConMaestros([]));
-  }
-  guardarLocal();
+  const idUp = String(entrante.id || previo.id || "").trim().toUpperCase();
+  const precioEntrante = formatearGuaranies(entrante.precio);
+  const precioPrevio = formatearGuaranies(previo.precio);
+  const precioCofre = cofrePrecios[idUp] || "";
 
-  if (driveUrl) {
-    localStorage.setItem(DRIVE_URL_KEY, driveUrl);
-    actualizarBadgeDrive(true);
-    sincronizarDesdeDrive();
-  }
-
-  poblarSelectores();
-  aplicarFiltros();
+  return {
+    ...previo,
+    ...entrante,
+    id: idUp,
+    fecha: normalizarFecha(entrante.fecha || previo.fecha),
+    categoria: entrante.categoria || previo.categoria,
+    marca: entrante.marca || previo.marca,
+    modelo: entrante.modelo || previo.modelo,
+    intervencion: entrante.intervencion || previo.intervencion,
+    trabajo: entrante.trabajo || previo.trabajo,
+    repuestos: (entrante.repuestos && entrante.repuestos !== "Ninguno") ? entrante.repuestos : (previo.repuestos || "Ninguno"),
+    precio: precioEntrante || precioPrevio || precioCofre || "",
+    notas: (entrante.notas && entrante.notas !== "-") ? entrante.notas : (previo.notas || "")
+  };
 }
 
 function fusionarConMaestros(listaEntrante) {
   const eliminados = new Set(obtenerIdsEliminados());
+  const cofrePrecios = respaldarPreciosEnCofre(DATOS_MAESTROS);
   const mapa = new Map();
 
+  // 1. Primero carga los datos maestros base
   DATOS_MAESTROS.forEach((m) => {
-    const idUp = String(m.id).toUpperCase();
+    const idUp = String(m.id).trim().toUpperCase();
     if (!eliminados.has(idUp)) {
-      mapa.set(idUp, m);
+      mapa.set(idUp, { ...m, id: idUp });
     }
   });
 
+  // 2. Preserva todo lo que ya esté en memoria activa (`servicios`)
+  if (Array.isArray(servicios) && servicios.length > 0) {
+    servicios.forEach((s) => {
+      const idUp = String(s.id || "").trim().toUpperCase();
+      if (idUp.startsWith("SER-") && !eliminados.has(idUp)) {
+        mapa.set(idUp, combinarRegistroSinPerderPrecio(mapa.get(idUp), s, cofrePrecios));
+      }
+    });
+  }
+
+  // 3. Fusiona la lista entrante (de localStorage o de Drive) SIN borrar precios existentes
   if (Array.isArray(listaEntrante)) {
     listaEntrante.forEach((item) => {
-      const idStr = String(item.id || "").toUpperCase();
+      const idStr = String(item.id || "").trim().toUpperCase();
       if (idStr.startsWith("SER-") && !eliminados.has(idStr)) {
-        mapa.set(idStr, item);
+        mapa.set(idStr, combinarRegistroSinPerderPrecio(mapa.get(idStr), item, cofrePrecios));
       }
     });
   }
@@ -581,7 +631,41 @@ function fusionarConMaestros(listaEntrante) {
   });
 }
 
+function cargarBaseDeDatos() {
+  // Rescatar cualquier servicio o precio guardado en versiones anteriores (v4, v5, v6, v7)
+  const clavesHistoricas = [STORAGE_KEY, "dn_servicios_db_v6", "dn_servicios_db_v5", "dn_servicios_db_v4"];
+  let acumuladosLocales = [];
+
+  clavesHistoricas.forEach((k) => {
+    const raw = localStorage.getItem(k);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          respaldarPreciosEnCofre(parsed);
+          acumuladosLocales.push(...parsed);
+        }
+      } catch (e) {
+        console.warn("Error leyendo caché previo:", k);
+      }
+    }
+  });
+
+  servicios = normalizarRegistros(fusionarConMaestros(acumuladosLocales));
+  guardarLocal();
+
+  if (driveUrl) {
+    localStorage.setItem(DRIVE_URL_KEY, driveUrl);
+    actualizarBadgeDrive(true);
+    sincronizarDesdeDrive();
+  }
+
+  poblarSelectores();
+  aplicarFiltros();
+}
+
 function guardarLocal() {
+  respaldarPreciosEnCofre(servicios);
   const copiaLimpia = servicios.map(
     ({ _dia, _mesKey, _mesLabel, _semanaKey, _semanaLabel, _timestamp, _monto, _claveGemelo, _busqueda, ...resto }) => resto
   );
@@ -904,7 +988,7 @@ function calcularEstadisticasIngresos() {
   const porCategoria = {};
 
   servicios.forEach((s) => {
-    const monto = s._monto || 0;
+    const monto = s._monto || obtenerMontoNumerico(s.precio);
     const semKey = s._semanaKey || "Sin fecha";
     const semLabel = s._semanaLabel || "Semana sin fecha";
     const mesKey = s._mesKey || "Sin mes";
@@ -964,7 +1048,6 @@ function calcularEstadisticasIngresos() {
   const listaDias = Object.values(porDia).sort((a, b) => b.timestamp - a.timestamp);
   const listaCategorias = Object.values(porCategoria).sort((a, b) => b.totalGs - a.totalGs || b.totalServicios - a.totalServicios);
 
-  // Determinar Mejor Semana, Mejor Mes y Mejor Día (por monto en Gs; si hay empate en 0, por cantidad de servicios)
   const mejorSemana =
     [...listaSemanas].sort((a, b) => b.totalGs - a.totalGs || b.totalServicios - a.totalServicios)[0] || null;
   const mejorMes =
@@ -1016,11 +1099,10 @@ function renderizarPanelIngresos() {
     elPromedio.textContent = stats.promedioPorCobrado > 0 ? formatearGuaranies(stats.promedioPorCobrado) : "0 Gs";
   }
 
-  // Selector de Semana
   if (selSemana) {
     const prevSem = selSemana.value;
     selSemana.innerHTML = stats.listaSemanas
-      .map((s) => `<option value="${s.key}">${s.label} (${s.totalServicios} serv.)</option>`)
+      .map((s) => `<option value="${s.key}">${s.label} (${s.totalServicios} serv. · ${formatearGuaranies(s.totalGs) || "0 Gs"})</option>`)
       .join("");
     if (prevSem && stats.listaSemanas.some((x) => x.key === prevSem)) {
       selSemana.value = prevSem;
@@ -1035,11 +1117,10 @@ function renderizarPanelIngresos() {
     }
   }
 
-  // Selector de Mes
   if (selMes) {
     const prevMes = selMes.value;
     selMes.innerHTML = stats.listaMeses
-      .map((m) => `<option value="${m.key}">${m.label} (${m.totalServicios} serv.)</option>`)
+      .map((m) => `<option value="${m.key}">${m.label} (${m.totalServicios} serv. · ${formatearGuaranies(m.totalGs) || "0 Gs"})</option>`)
       .join("");
     if (prevMes && stats.listaMeses.some((x) => x.key === prevMes)) {
       selMes.value = prevMes;
@@ -1054,7 +1135,6 @@ function renderizarPanelIngresos() {
     }
   }
 
-  // Récords Históricos (Mejor Semana, Mejor Mes, Mejor Día)
   if (stats.mejorSemana) {
     elMejorSemanaMonto.textContent = formatearGuaranies(stats.mejorSemana.totalGs) || "0 Gs";
     elMejorSemanaNombre.textContent = `${stats.mejorSemana.label} · ${stats.mejorSemana.totalServicios} serv. (${stats.mejorSemana.cobrados} con precio)`;
@@ -1065,10 +1145,9 @@ function renderizarPanelIngresos() {
   }
   if (stats.mejorDia) {
     elMejorDiaMonto.textContent = formatearGuaranies(stats.mejorDia.totalGs) || "0 Gs";
-    elMejorDiaNombre.textContent = `${stats.mejorDia.fecha} (${stats.mejorDia.dia}) · ${stats.mejorDia.totalServicios} serv.`;
+    elMejorDiaNombre.textContent = `${stats.mejorDia.fecha} (${stats.mejorDia.dia}) · ${stats.mejorDia.totalServicios} serv. (${stats.mejorDia.cobrados} con precio)`;
   }
 
-  // Tabla / Barras de Todas las Semanas
   const contSemanas = document.getElementById("fin-lista-semanas");
   const maxSemGs = stats.mejorSemana && stats.mejorSemana.totalGs > 0 ? stats.mejorSemana.totalGs : 1;
   if (contSemanas) {
@@ -1106,7 +1185,6 @@ function renderizarPanelIngresos() {
       .join("");
   }
 
-  // Tabla / Barras de Todos los Meses
   const contMeses = document.getElementById("fin-lista-meses");
   const maxMesGs = stats.mejorMes && stats.mejorMes.totalGs > 0 ? stats.mejorMes.totalGs : 1;
   if (contMeses) {
@@ -1144,7 +1222,6 @@ function renderizarPanelIngresos() {
       .join("");
   }
 
-  // Desglose por Categoría
   const contCats = document.getElementById("fin-lista-categorias");
   if (contCats) {
     contCats.innerHTML = stats.listaCategorias
@@ -1890,7 +1967,7 @@ function configurarEventos() {
       }
       errorInt.classList.add("hidden");
 
-      const editId = document.getElementById("inp-edit-id").value.trim();
+      const editId = document.getElementById("inp-edit-id").value.trim().toUpperCase();
       const trabajoRaw = document.getElementById("inp-trabajo").value.trim();
       const ext = extraerPrecioDeTexto(trabajoRaw);
       const inpPrecioEl = document.getElementById("inp-precio");
@@ -1898,8 +1975,19 @@ function configurarEventos() {
       const precioFinal = precioInput ? formatearGuaranies(precioInput) : ext.precio;
       const trabajoTxt = ext.precio ? ext.textoSinPrecio : trabajoRaw;
 
+      const idRegistro = editId || generarNuevoID(1);
+
+      // Si editó y dejó el precio en blanco a propósito, actualizar el cofre
+      const cofre = obtenerMapaPreciosBlindados();
+      if (precioFinal) {
+        cofre[idRegistro] = precioFinal;
+      } else if (editId) {
+        delete cofre[idRegistro];
+      }
+      localStorage.setItem(PRECIOS_BACKUP_KEY, JSON.stringify(cofre));
+
       const datosBase = {
-        id: editId || generarNuevoID(1),
+        id: idRegistro,
         fecha: formatearFechaInput(document.getElementById("inp-fecha").value),
         categoria: document.getElementById("inp-categoria").value,
         marca: document.getElementById("inp-marca").value.trim(),
@@ -2027,6 +2115,7 @@ function configurarEventos() {
         };
       });
 
+      respaldarPreciosEnCofre(nuevosCrudos);
       const nuevosNormalizados = normalizarRegistros(nuevosCrudos);
       servicios.push(...nuevosNormalizados);
       guardarLocal();
@@ -2040,7 +2129,7 @@ function configurarEventos() {
           await enviarFilaADrive(reg);
         }
       }
-      alert(`¡Se guardaron ${nuevosNormalizados.length} servicios correctamente!`);
+      alert(`¡Se guardaron ${nuevosNormalizados.length} servicios correctamente con sus precios protegidos!`);
     });
   }
 
@@ -2173,10 +2262,12 @@ async function sincronizarDesdeDrive() {
     const data = await res.json();
     if (Array.isArray(data) && data.length > 0) {
       const soloAngel = data.filter((r) => String(r.id || "").toUpperCase().startsWith("SER-"));
+      // Fusiona conservando siempre los precios y servicios más recientes que estén en local
       servicios = normalizarRegistros(fusionarConMaestros(soloAngel));
       guardarLocal();
       poblarSelectores();
       aplicarFiltros();
+      if (bovedaDesbloqueada) renderizarPanelIngresos();
     }
   } catch (e) {
     console.log("Usando base completa local de Ángel.");
