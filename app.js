@@ -1,5 +1,5 @@
 const PIN_ACCESO = "000";
-const PIN_INGRESOS = "1212"; 
+const PIN_INGRESOS = "1212"; // Contraseña exclusiva para Bóveda de Ingresos
 const TECNICO_NOMBRE = "ANGEL VILLALBA";
 const AUTH_SESSION_KEY = "dn_servicios_autenticado_v6";
 const STORAGE_KEY = "dn_servicios_db_v7";
