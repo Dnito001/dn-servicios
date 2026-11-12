@@ -1,9 +1,3 @@
-// ============================================================================
-// DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN SISTEMA: 000)
-// VERSIÓN 9 DEFINITIVA: PERSISTENCIA EXACTA AL REFRESCAR (SIN BORRADO DE IDs
-// REUTILIZADOS NI SOBRESCRITURA DESDE GOOGLE DRIVE AL RECARGAR)
-// ============================================================================
-
 const PIN_ACCESO = "000";
 const PIN_INGRESOS = "1212";
 const TECNICO_NOMBRE = "ANGEL VILLALBA";
