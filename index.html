@@ -11,7 +11,7 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -27,7 +27,7 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- PANTALLA DE BLOQUEO POR CONTRASEÑA -->
+  <!-- PANTALLA DE BLOQUEO POR CONTRASEÑA (PIN GENERAL: 000) -->
   <div id="pantalla-login" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 sm:p-8 shadow-2xl text-center space-y-6">
       <div class="w-16 h-16 rounded-2xl bg-teal-600/20 border border-teal-500/40 flex items-center justify-center mx-auto text-teal-400 shadow-inner">
@@ -52,7 +52,7 @@
             class="w-full text-center tracking-[0.5em] text-2xl font-extrabold py-3 px-4 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
           />
           <p id="error-login" class="text-xs text-rose-400 font-semibold mt-2 hidden">
-            Contraseña incorrecta._.
+            Contraseña incorrecta.
           </p>
         </div>
         <button
@@ -90,7 +90,6 @@
             </div>
           </div>
 
-          <!-- Botón bloquear rápido en móvil -->
           <button id="btn-bloquear-movil" class="md:hidden inline-flex items-center justify-center bg-slate-800 hover:bg-rose-950 text-slate-300 border border-slate-700 p-2.5 rounded-lg">
             <i data-lucide="lock" class="w-4 h-4"></i>
           </button>
@@ -106,13 +105,25 @@
             <i data-lucide="sparkles" class="w-4 h-4"></i>
             Carga Rápida (Texto)
           </button>
+
+          <!-- LOGUITO / BOTÓN PRIVADO DE BÓVEDA DE INGRESOS (PIN: 1212) -->
+          <button
+            id="btn-abrir-boveda"
+            type="button"
+            title="Bóveda Privada de Ingresos (Requiere PIN)"
+            class="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 text-amber-300 border border-amber-500/50 px-3.5 py-2.5 rounded-lg shadow-sm transition text-sm font-bold"
+          >
+            <span class="w-5 h-5 rounded-full bg-amber-400/20 border border-amber-400 flex items-center justify-center text-amber-300 text-xs font-black">₲</span>
+            <span>Mis Ingresos</span>
+            <i data-lucide="key-round" class="w-3.5 h-3.5 text-amber-400"></i>
+          </button>
+
           <button id="btn-exportar" class="inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2.5 rounded-lg transition text-sm">
             <i data-lucide="download" class="w-4 h-4 text-teal-400"></i>
             Exportar CSV
           </button>
-          <button id="btn-config-drive" class="inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2.5 rounded-lg transition text-sm" title="Conectar con Google Drive">
+          <button id="btn-config-drive" class="inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2.5 rounded-lg transition text-sm" title="Conectar con Google Drive">
             <i data-lucide="hard-drive" class="w-4 h-4 text-emerald-400"></i>
-            <span class="hidden sm:inline">Google Drive</span>
           </button>
           <button id="btn-bloquear" class="hidden md:inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-700 px-3 py-2.5 rounded-lg transition text-sm" title="Bloquear pantalla">
             <i data-lucide="lock" class="w-4 h-4"></i>
@@ -176,7 +187,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div class="flex items-center gap-2">
             <i data-lucide="sliders-horizontal" class="w-4 h-4 text-teal-600"></i>
-            <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700">Panel de Filtros Cruzados</h2>
+            <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700">Buscador Rápido y Filtros Cruzados</h2>
           </div>
           <button id="btn-limpiar" class="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg transition self-start sm:self-auto">
             <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
@@ -189,7 +200,7 @@
             <label class="block text-xs font-semibold text-slate-600 mb-1">Buscar (Modelo, Trabajo, Día, Precio)</label>
             <div class="relative">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-              <input type="text" id="filtro-texto" placeholder="Ej. Lunes, L3250, SSD, 50.000..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white" />
+              <input type="search" id="filtro-texto" autocomplete="off" placeholder="Ej. Lunes, L3250, SSD, 50.000..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white" />
             </div>
           </div>
 
@@ -221,6 +232,29 @@
             </select>
           </div>
         </div>
+
+        <!-- CHIPS DE FILTRO RÁPIDO EN 1 CLIC -->
+        <div class="pt-2 border-t border-slate-100 space-y-2">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mr-1">Equipos:</span>
+            <button type="button" data-cat="" class="chip-cat px-3 py-1 rounded-xl text-xs font-extrabold bg-teal-600 text-white shadow-xs transition cursor-pointer">Todos</button>
+            <button type="button" data-cat="Impresora" class="chip-cat px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">🖨️ Impresoras</button>
+            <button type="button" data-cat="Notebook / Laptop" class="chip-cat px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">💻 Laptops</button>
+            <button type="button" data-cat="PC Escritorio / Servidor" class="chip-cat px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">🖥️ PC Escritorio</button>
+            <button type="button" data-cat="Smartphone" class="chip-cat px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">📱 Smartphones</button>
+            <button type="button" data-cat="Almacenamiento" class="chip-cat px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">💾 Discos / Datos</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mr-1">Marcas:</span>
+            <button type="button" data-marca="" class="chip-marca px-3 py-1 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-xs transition cursor-pointer">Todas</button>
+            <button type="button" data-marca="HP" class="chip-marca px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">HP</button>
+            <button type="button" data-marca="Epson" class="chip-marca px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">Epson</button>
+            <button type="button" data-marca="Brother" class="chip-marca px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">Brother</button>
+            <button type="button" data-marca="Acer" class="chip-marca px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">Acer</button>
+            <button type="button" data-marca="Samsung" class="chip-marca px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">Samsung</button>
+            <button type="button" data-marca="JBL" class="chip-marca px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer">JBL</button>
+          </div>
+        </div>
       </section>
 
       <!-- TABLA DE VISUALIZACIÓN DINÁMICA -->
@@ -236,7 +270,7 @@
         <!-- VISTA MÓVIL (TARJETAS ADAPTABLES EN TELÉFONOS) -->
         <div id="lista-movil" class="block md:hidden divide-y divide-slate-200"></div>
 
-        <!-- VISTA ESCRITORIO Y TABLETS (TABLA DE 10 COLUMNAS CON PRECIO EN GS) -->
+        <!-- VISTA ESCRITORIO Y TABLETS -->
         <div class="hidden md:block overflow-x-auto custom-scroll">
           <table class="w-full text-left border-collapse">
             <thead>
@@ -265,13 +299,194 @@
     </button>
   </div>
 
-  <!-- MODAL: NUEVO SERVICIO INDIVIDUAL -->
+  <!-- ====================================================================== -->
+  <!-- MODAL 1: PIN DE ACCESO A LA BÓVEDA DE INGRESOS (CONTRASEÑA: 1212)       -->
+  <!-- ====================================================================== -->
+  <div id="modal-pin-ingresos" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-5 relative">
+      <button id="btn-cerrar-pin-ingresos" type="button" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-400/50 flex items-center justify-center mx-auto text-amber-300 shadow-inner">
+        <span class="text-3xl font-black">₲</span>
+      </div>
+
+      <div>
+        <span class="inline-block text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-700 mb-1">
+          Área Financiera Privada
+        </span>
+        <h3 class="text-lg font-extrabold text-white">Bóveda de Ingresos · Ángel Villalba</h3>
+        <p class="text-xs text-slate-400 mt-0.5">Ingresa tu clave privada para ver tus ganancias y récords</p>
+      </div>
+
+      <form id="form-pin-ingresos" class="space-y-4">
+        <div>
+          <input
+            type="password"
+            id="inp-pin-ingresos"
+            inputmode="numeric"
+            maxlength="8"
+            placeholder="••••"
+            required
+            class="w-full text-center tracking-[0.5em] text-2xl font-extrabold py-3 px-4 bg-slate-950 border border-slate-700 rounded-xl text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          />
+          <p id="error-pin-ingresos" class="text-xs text-rose-400 font-semibold mt-2 hidden">
+            Clave incorrecta. Acceso denegado.
+          </p>
+        </div>
+        <button
+          type="submit"
+          class="w-full bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-black py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm"
+        >
+          <i data-lucide="key-round" class="w-4 h-4"></i>
+          Abrir Bóveda de Ingresos
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL 2: PANEL COMPLETO DE INGRESOS SEMANAL, MENSUAL, TOTAL Y RÉCORDS  -->
+  <!-- ====================================================================== -->
+  <div id="modal-ingresos" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 hidden items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-5xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
+      <!-- Header de la Bóveda -->
+      <div class="bg-slate-900 text-white px-5 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/40 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 font-black text-xl">
+            ₲
+          </div>
+          <div>
+            <h3 class="font-extrabold text-base sm:text-lg text-white">Mis Ingresos y Récords · Ángel Villalba</h3>
+            <p class="text-[11px] text-slate-400">Control privado de ganancias semanales, mensuales, totales y mejores marcas</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            id="btn-bloquear-boveda"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-200 border border-rose-700/60 text-xs font-bold transition"
+          >
+            <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+            Cerrar con Llave
+          </button>
+          <button id="btn-cerrar-ingresos" type="button" class="text-slate-400 hover:text-white p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Cuerpo del Panel Financiero -->
+      <div class="p-5 sm:p-6 space-y-6 overflow-y-auto custom-scroll flex-1">
+
+        <!-- FILA 1: INGRESO TOTAL, INGRESO SEMANAL E INGRESO MENSUAL -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Total Acumulado -->
+          <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-5 shadow-md border border-slate-700 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-extrabold uppercase tracking-wider text-emerald-400">Ingreso Total Acumulado</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">General</span>
+            </div>
+            <p id="fin-ingreso-total" class="text-3xl font-black text-white mt-3">0 Gs</p>
+            <div class="mt-3 pt-2.5 border-t border-slate-700/80 flex items-center justify-between text-xs text-slate-300">
+              <span id="fin-ingreso-total-sub">0 servicios cobrados</span>
+              <span>Prom.: <strong id="fin-promedio-ticket" class="text-emerald-300">0 Gs</strong></span>
+            </div>
+          </div>
+
+          <!-- Ingreso Semanal (con selector de semana) -->
+          <div class="bg-white rounded-2xl p-5 shadow-sm border-2 border-indigo-200 flex flex-col justify-between">
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-700">Ingreso Semanal</span>
+                <i data-lucide="calendar-range" class="w-4 h-4 text-indigo-600"></i>
+              </div>
+              <select id="fin-select-semana" class="w-full px-2.5 py-1.5 bg-indigo-50/70 border border-indigo-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+            </div>
+            <p id="fin-ingreso-semanal" class="text-2xl sm:text-3xl font-black text-indigo-900 mt-3">0 Gs</p>
+            <p id="fin-ingreso-semanal-sub" class="text-xs text-slate-500 mt-2">Selecciona una semana para ver su recaudación</p>
+          </div>
+
+          <!-- Ingreso Mensual (con selector de mes) -->
+          <div class="bg-white rounded-2xl p-5 shadow-sm border-2 border-teal-200 flex flex-col justify-between">
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-teal-700">Ingreso Mensual</span>
+                <i data-lucide="calendar" class="w-4 h-4 text-teal-600"></i>
+              </div>
+              <select id="fin-select-mes" class="w-full px-2.5 py-1.5 bg-teal-50/70 border border-teal-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500"></select>
+            </div>
+            <p id="fin-ingreso-mensual" class="text-2xl sm:text-3xl font-black text-teal-900 mt-3">0 Gs</p>
+            <p id="fin-ingreso-mensual-sub" class="text-xs text-slate-500 mt-2">Selecciona un mes para ver su recaudación</p>
+          </div>
+        </div>
+
+        <!-- FILA 2: RÉCORDS HISTÓRICOS (MEJOR SEMANA, MEJOR MES Y MEJOR DÍA) -->
+        <div class="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 sm:p-5 space-y-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="trophy" class="w-5 h-5 text-amber-600"></i>
+            <h4 class="text-xs sm:text-sm font-black uppercase tracking-wider text-amber-950">
+              Tus Récords Históricos (Mejor Semana, Mejor Mes y Mejor Día)
+            </h4>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="bg-white rounded-xl p-4 border border-amber-300 shadow-xs">
+              <span class="text-[11px] font-extrabold uppercase text-amber-700 block">🏆 Tu Mejor Semana</span>
+              <p id="fin-mejor-semana-monto" class="text-xl font-black text-slate-900 mt-1">0 Gs</p>
+              <p id="fin-mejor-semana-nombre" class="text-xs font-semibold text-slate-600 mt-0.5">-</p>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 border border-emerald-300 shadow-xs">
+              <span class="text-[11px] font-extrabold uppercase text-emerald-700 block">🏆 Tu Mejor Mes</span>
+              <p id="fin-mejor-mes-monto" class="text-xl font-black text-slate-900 mt-1">0 Gs</p>
+              <p id="fin-mejor-mes-nombre" class="text-xs font-semibold text-slate-600 mt-0.5">-</p>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 border border-indigo-300 shadow-xs">
+              <span class="text-[11px] font-extrabold uppercase text-indigo-700 block">⚡ Tu Mejor Día</span>
+              <p id="fin-mejor-dia-monto" class="text-xl font-black text-slate-900 mt-1">0 Gs</p>
+              <p id="fin-mejor-dia-nombre" class="text-xs font-semibold text-slate-600 mt-0.5">-</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- FILA 3: HISTORIAL DETALLADO POR SEMANA Y POR MES -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="space-y-2.5">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-600"></i>
+              Desglose de Ingresos por Semana (Lunes a Domingo)
+            </h4>
+            <div id="fin-lista-semanas" class="space-y-2 max-h-72 overflow-y-auto custom-scroll pr-1"></div>
+          </div>
+
+          <div class="space-y-2.5">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <i data-lucide="pie-chart" class="w-4 h-4 text-teal-600"></i>
+              Desglose de Ingresos por Mes y por Categoría
+            </h4>
+            <div id="fin-lista-meses" class="space-y-2"></div>
+            <h5 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 pt-2">Recaudación por Categoría de Equipo</h5>
+            <div id="fin-lista-categorias" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-500 bg-slate-100 p-3 rounded-xl border border-slate-200">
+          💡 <strong>Tip rápido:</strong> Si tienes servicios anteriores sin precio cargado, puedes hacer clic en el botón <strong>"+ Cargar Gs"</strong> en la tabla principal para asignarles su monto y se sumarán automáticamente a tu semana y mes correspondientes.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NUEVO / EDITAR SERVICIO INDIVIDUAL -->
   <div id="modal-registro" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
       <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-teal-600/40">
         <div class="flex items-center gap-2">
           <i data-lucide="plus-square" class="w-5 h-5 text-teal-400"></i>
-          <h3 class="font-bold text-base">Registrar Nuevo Servicio Técnico</h3>
+          <h3 id="titulo-modal-registro" class="font-bold text-base">Registrar Nuevo Servicio Técnico</h3>
         </div>
         <button id="btn-cerrar-modal" class="text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-5 h-5"></i>
@@ -279,6 +494,7 @@
       </div>
 
       <form id="form-servicio" class="p-6 space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
+        <input type="hidden" id="inp-edit-id" value="" />
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Fecha Numérica *</label>
@@ -312,7 +528,6 @@
           </div>
         </div>
 
-        <!-- SELECCIÓN DE 1 O VARIAS INTERVENCIONES -->
         <div>
           <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Tipo de Intervención (Puedes marcar una o más) *</label>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -441,7 +656,6 @@ mantenimiento completo 50.000gs"
           <span id="resumen-lote" class="text-xs font-bold text-emerald-700"></span>
         </div>
 
-        <!-- DESGLOSE DE CLASIFICACIÓN POR DÍA Y SERVICIOS REALIZADOS -->
         <div id="contenedor-resumen-dias" class="hidden space-y-3">
           <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
             <i data-lucide="calendar-check" class="w-4 h-4 text-teal-600"></i>
@@ -450,7 +664,6 @@ mantenimiento completo 50.000gs"
           <div id="grid-resumen-dias" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
         </div>
 
-        <!-- TABLA DE VISTA PREVIA DEL LOTE -->
         <div id="contenedor-preview-lote" class="hidden border border-slate-200 rounded-xl overflow-hidden">
           <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
             <span>Vista Previa de Filas a Guardar</span>
@@ -524,6 +737,6 @@ mantenimiento completo 50.000gs"
     </div>
   </div>
 
-  <script src="app.js?v=999"></script>
+  <script src="app.js?v=1000"></script>
 </body>
 </html>

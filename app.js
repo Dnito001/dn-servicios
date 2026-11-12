@@ -1,15 +1,21 @@
 // ============================================================================
-// DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN: 000)
-// CON COLUMNA PRECIO (GS), CARGA RÁPIDA SEMANAL Y DETECTOR DE REPETIDOS
+// DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN SISTEMA: 000)
+// CON BÓVEDA DE INGRESOS (PIN: 1212), BUSCADOR SIN LAG, EDICIÓN Y CARGA SEMANAL
 // ============================================================================
 
 const PIN_ACCESO = "000";
+const PIN_INGRESOS = "1212"; // Contraseña exclusiva para el apartado de ingresos
 const TECNICO_NOMBRE = "ANGEL VILLALBA";
-const AUTH_SESSION_KEY = "dn_servicios_autenticado_v5";
-const STORAGE_KEY = "dn_servicios_db_v5";
+const AUTH_SESSION_KEY = "dn_servicios_autenticado_v6";
+const STORAGE_KEY = "dn_servicios_db_v6";
+const DELETED_IDS_KEY = "dn_servicios_eliminados_v6";
 const DRIVE_URL_KEY = "dn_servicios_drive_url";
 
 const DEFAULT_DRIVE_URL = "https://script.google.com/macros/s/AKfycbxezjx2ilDKOrdGQXrE3bHUO3cnMnMFDoDl3FJ7SX1xGTU-HmLXqWHrNB3h2IzcIrPF-g/exec";
+
+// Íconos SVG en línea para evitar congelamientos al renderizar la tabla
+const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
+const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
 // 61 REGISTROS HISTÓRICOS DE ÁNGEL VILLALBA
 const DATOS_MAESTROS = [
@@ -77,8 +83,49 @@ const DATOS_MAESTROS = [
 ];
 
 let servicios = [];
+let ultimosFiltrados = [];
 let loteTemporal = [];
+let bovedaDesbloqueada = false;
+let timerBusqueda = null;
+let ultimoAnchoMovil = window.innerWidth < 768;
 let driveUrl = localStorage.getItem(DRIVE_URL_KEY) || DEFAULT_DRIVE_URL;
+
+// ============================================================================
+// UTILIDADES DE FECHAS, SEMANAS, MESES Y MONEDA
+// ============================================================================
+function limpiarParaBusqueda(valor) {
+  return String(valor ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function normalizarFecha(f) {
+  if (!f) return "";
+  const str = String(f).trim();
+  if (str.includes("T")) {
+    const soloFecha = str.split("T")[0];
+    const partes = soloFecha.split("-");
+    if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
+  const matchGuion = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (matchGuion) return `${matchGuion[3]}/${matchGuion[2]}/${matchGuion[1]}`;
+  return str;
+}
+
+function convertirFechaAYYYYMMDD(fechaDDMMYYYY) {
+  const partes = String(fechaDDMMYYYY || "").split("/");
+  if (partes.length !== 3) return "";
+  return `${partes[2]}-${partes[1].padStart(2, "0")}-${partes[0].padStart(2, "0")}`;
+}
+
+function convertirFechaATimestamp(fechaDDMMYYYY) {
+  const partes = String(fechaDDMMYYYY ?? "").split("/");
+  if (partes.length !== 3) return 0;
+  const [dd, mm, yyyy] = partes.map(Number);
+  return new Date(yyyy, mm - 1, dd).getTime() || 0;
+}
 
 function obtenerDiaSemana(fechaDDMMYYYY) {
   if (!fechaDDMMYYYY) return "";
@@ -92,8 +139,51 @@ function obtenerDiaSemana(fechaDDMMYYYY) {
   return dias[fechaObj.getDay()];
 }
 
+function obtenerInfoMes(fechaDDMMYYYY) {
+  const partes = String(fechaDDMMYYYY ?? "").split("/");
+  if (partes.length !== 3) return { key: "", label: "" };
+  const mm = parseInt(partes[1], 10);
+  const yyyy = partes[2];
+  const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  if (!mm || mm < 1 || mm > 12) return { key: "", label: "" };
+  return {
+    key: `${yyyy}-${String(mm).padStart(2, "0")}`,
+    label: `${meses[mm - 1]} ${yyyy}`
+  };
+}
+
+// Calcula la semana exacta (Lunes a Domingo) a la que pertenece cualquier fecha DD/MM/YYYY
+function obtenerInfoSemana(fechaDDMMYYYY) {
+  const partes = String(fechaDDMMYYYY ?? "").split("/");
+  if (partes.length !== 3) return { key: "", label: "" };
+  const [dd, mm, yyyy] = partes.map(Number);
+  if (!dd || !mm || !yyyy) return { key: "", label: "" };
+
+  const fechaObj = new Date(yyyy, mm - 1, dd);
+  if (isNaN(fechaObj.getTime())) return { key: "", label: "" };
+
+  const dia = fechaObj.getDay(); // 0 = Domingo, 1 = Lunes
+  const diffLunes = dia === 0 ? -6 : 1 - dia;
+
+  const lunes = new Date(yyyy, mm - 1, dd + diffLunes);
+  const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
+
+  const lDD = String(lunes.getDate()).padStart(2, "0");
+  const lMM = String(lunes.getMonth() + 1).padStart(2, "0");
+  const lYYYY = lunes.getFullYear();
+
+  const dDD = String(domingo.getDate()).padStart(2, "0");
+  const dMM = String(domingo.getMonth() + 1).padStart(2, "0");
+  const dYYYY = domingo.getFullYear();
+
+  return {
+    key: `${lYYYY}-${lMM}-${lDD}`,
+    label: `Semana del ${lDD}/${lMM} al ${dDD}/${dMM}/${dYYYY}`
+  };
+}
+
 function formatearGuaranies(valor) {
-  if (!valor) return "";
+  if (!valor && valor !== 0) return "";
   const limpio = String(valor).replace(/\D/g, "");
   if (!limpio) return "";
   const num = parseInt(limpio, 10);
@@ -209,9 +299,6 @@ function deducirRepuestos(trabajo) {
   return rep.length > 0 ? rep.join(" + ") : "Ninguno";
 }
 
-// ============================================================================
-// DETECTOR DE DUPLICADOS Y SERVICIOS REPETIDOS EN LA MISMA FECHA
-// ============================================================================
 function limpiarTextoComparacion(str) {
   return String(str || "")
     .toLowerCase()
@@ -220,7 +307,7 @@ function limpiarTextoComparacion(str) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function verificarDuplicadoIndividual(nuevoItem) {
+function verificarDuplicadoIndividual(nuevoItem, ignorarId = null) {
   const fNueva = normalizarFecha(nuevoItem.fecha);
   const marcaNueva = limpiarTextoComparacion(nuevoItem.marca);
   const modeloNuevo = limpiarTextoComparacion(nuevoItem.modelo);
@@ -228,6 +315,7 @@ function verificarDuplicadoIndividual(nuevoItem) {
   const intNueva = limpiarTextoComparacion(nuevoItem.intervencion);
 
   return servicios.filter((s) => {
+    if (ignorarId && s.id === ignorarId) return false;
     if (normalizarFecha(s.fecha) !== fNueva) return false;
     const mMarca = limpiarTextoComparacion(s.marca) === marcaNueva;
     const mModelo = limpiarTextoComparacion(s.modelo) === modeloNuevo;
@@ -295,19 +383,6 @@ function evaluarDuplicadosEnLote(listaLote) {
   });
 }
 
-function normalizarFecha(f) {
-  if (!f) return "";
-  const str = String(f).trim();
-  if (str.includes("T")) {
-    const soloFecha = str.split("T")[0];
-    const partes = soloFecha.split("-");
-    if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  }
-  const matchGuion = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (matchGuion) return `${matchGuion[3]}/${matchGuion[2]}/${matchGuion[1]}`;
-  return str;
-}
-
 function inicializarIconos() {
   if (window.lucide && typeof lucide.createIcons === "function") {
     try {
@@ -324,6 +399,7 @@ document.addEventListener("DOMContentLoaded", () => {
   configurarEventos();
 });
 
+// Precalcula todos los metadatos (_dia, _mesKey, _semanaKey, _monto, _busqueda) para velocidad instantánea
 function normalizarRegistros(lista) {
   return lista.map((item) => {
     let inter = item.intervencion || deducirIntervencion(item.trabajo || "");
@@ -338,22 +414,49 @@ function normalizarRegistros(lista) {
     const extTrabajo = extraerPrecioDeTexto(item.trabajo || "");
     const extNotas = extraerPrecioDeTexto(notasRaw);
     const precioFinal = item.precio ? formatearGuaranies(item.precio) : (extTrabajo.precio || extNotas.precio || "");
-    const trabajoLimpio = extTrabajo.precio ? extTrabajo.textoSinPrecio : (item.trabajo || "");
-    const notasLimpias = (extNotas.precio && !item.precio) ? extNotas.textoSinPrecio : notasRaw;
+    const trabajoLimpio = (extTrabajo.precio ? extTrabajo.textoSinPrecio : (item.trabajo || "")).trim();
+    const notasLimpias = ((extNotas.precio && !item.precio) ? extNotas.textoSinPrecio : notasRaw).trim();
+
+    const idLimpio = String(item.id || "").trim();
+    const fechaNorm = normalizarFecha(item.fecha);
+    const catLimpia = String(item.categoria || "Notebook / Laptop").trim();
+    const marcaLimpia = String(item.marca || "Genérico").trim();
+    const modeloLimpio = String(item.modelo || "-").trim();
+    const repuestosLimpio = String(item.repuestos || deducirRepuestos(trabajoLimpio)).trim();
+
+    const diaSemana = obtenerDiaSemana(fechaNorm);
+    const infoMes = obtenerInfoMes(fechaNorm);
+    const infoSem = obtenerInfoSemana(fechaNorm);
+    const timestamp = convertirFechaATimestamp(fechaNorm);
+    const montoNum = obtenerMontoNumerico(precioFinal);
+
+    const claveGemelo = `${fechaNorm}|${limpiarTextoComparacion(marcaLimpia)}|${limpiarTextoComparacion(modeloLimpio)}|${limpiarTextoComparacion(trabajoLimpio)}`;
+    const indiceBusqueda = limpiarParaBusqueda(
+      `${idLimpio} ${fechaNorm} ${diaSemana} ${infoMes.label} ${catLimpia} ${marcaLimpia} ${modeloLimpio} ${inter} ${trabajoLimpio} ${repuestosLimpio} ${precioFinal} ${notasLimpias}`
+    );
 
     return {
-      id: item.id,
-      fecha: normalizarFecha(item.fecha),
-      categoria: item.categoria || "Notebook / Laptop",
-      marca: item.marca || "Genérico",
-      modelo: item.modelo || "-",
+      id: idLimpio,
+      fecha: fechaNorm,
+      categoria: catLimpia,
+      marca: marcaLimpia,
+      modelo: modeloLimpio,
       intervencion: inter,
       trabajo: trabajoLimpio,
-      repuestos: item.repuestos || deducirRepuestos(trabajoLimpio),
+      repuestos: repuestosLimpio,
       precio: precioFinal,
       estado: item.estado || "Entregado",
       notas: notasLimpias,
-      tecnico: TECNICO_NOMBRE
+      tecnico: TECNICO_NOMBRE,
+      _dia: diaSemana,
+      _mesKey: infoMes.key,
+      _mesLabel: infoMes.label,
+      _semanaKey: infoSem.key,
+      _semanaLabel: infoSem.label,
+      _timestamp: timestamp,
+      _monto: montoNum,
+      _claveGemelo: claveGemelo,
+      _busqueda: indiceBusqueda
     };
   });
 }
@@ -393,6 +496,7 @@ function configurarSeguridad() {
 
   const bloquearSistema = () => {
     sessionStorage.removeItem(AUTH_SESSION_KEY);
+    bovedaDesbloqueada = false;
     appContenido.classList.add("hidden");
     appContenido.style.display = "none";
     pantallaLogin.style.display = "flex";
@@ -405,17 +509,35 @@ function configurarSeguridad() {
   if (btnBloquearMovil) btnBloquearMovil.addEventListener("click", bloquearSistema);
 }
 
+function obtenerIdsEliminados() {
+  try {
+    return JSON.parse(localStorage.getItem(DELETED_IDS_KEY) || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+
+function registrarIdEliminado(id) {
+  const eliminados = new Set(obtenerIdsEliminados());
+  eliminados.add(String(id).toUpperCase());
+  localStorage.setItem(DELETED_IDS_KEY, JSON.stringify([...eliminados]));
+}
+
 function cargarBaseDeDatos() {
-  const guardados = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("dn_servicios_db_v4");
+  const guardados =
+    localStorage.getItem(STORAGE_KEY) ||
+    localStorage.getItem("dn_servicios_db_v5") ||
+    localStorage.getItem("dn_servicios_db_v4");
+
   if (guardados) {
     try {
       const parsed = JSON.parse(guardados);
       servicios = normalizarRegistros(fusionarConMaestros(parsed));
     } catch (e) {
-      servicios = normalizarRegistros([...DATOS_MAESTROS]);
+      servicios = normalizarRegistros(fusionarConMaestros([]));
     }
   } else {
-    servicios = normalizarRegistros([...DATOS_MAESTROS]);
+    servicios = normalizarRegistros(fusionarConMaestros([]));
   }
   guardarLocal();
 
@@ -429,17 +551,30 @@ function cargarBaseDeDatos() {
   aplicarFiltros();
 }
 
-// Filtra y fusiona únicamente registros de Ángel (SER-...)
 function fusionarConMaestros(listaEntrante) {
+  const eliminados = new Set(obtenerIdsEliminados());
   const mapa = new Map();
-  DATOS_MAESTROS.forEach((m) => mapa.set(m.id, m));
-  listaEntrante.forEach((item) => {
-    const idStr = String(item.id || "").toUpperCase();
-    if (idStr.startsWith("SER-")) {
-      mapa.set(idStr, item);
+
+  DATOS_MAESTROS.forEach((m) => {
+    const idUp = String(m.id).toUpperCase();
+    if (!eliminados.has(idUp)) {
+      mapa.set(idUp, m);
     }
   });
+
+  if (Array.isArray(listaEntrante)) {
+    listaEntrante.forEach((item) => {
+      const idStr = String(item.id || "").toUpperCase();
+      if (idStr.startsWith("SER-") && !eliminados.has(idStr)) {
+        mapa.set(idStr, item);
+      }
+    });
+  }
+
   return Array.from(mapa.values()).sort((a, b) => {
+    const tA = convertirFechaATimestamp(normalizarFecha(a.fecha));
+    const tB = convertirFechaATimestamp(normalizarFecha(b.fecha));
+    if (tA !== tB) return tA - tB;
     const numA = parseInt(String(a.id).replace(/\D/g, "")) || 0;
     const numB = parseInt(String(b.id).replace(/\D/g, "")) || 0;
     return numA - numB;
@@ -447,7 +582,10 @@ function fusionarConMaestros(listaEntrante) {
 }
 
 function guardarLocal() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(servicios));
+  const copiaLimpia = servicios.map(
+    ({ _dia, _mesKey, _mesLabel, _semanaKey, _semanaLabel, _timestamp, _monto, _claveGemelo, _busqueda, ...resto }) => resto
+  );
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(copiaLimpia));
 }
 
 function obtenerIntervencionesUnicas() {
@@ -475,21 +613,36 @@ function poblarSelectores() {
   const valInt = selInt.value;
   const valFecha = selFecha.value;
 
-  const categorias = [...new Set(servicios.map((s) => s.categoria))].sort();
-  const marcas = [...new Set(servicios.map((s) => s.marca))].sort();
-  const intervenciones = obtenerIntervencionesUnicas();
-  const fechas = [...new Set(servicios.map((s) => s.fecha))];
+  const conteoCat = {};
+  const conteoMarca = {};
+  const conteoFecha = {};
 
-  selCat.innerHTML = '<option value="">Todas las categorías</option>' + categorias.map((c) => `<option value="${c}">${c}</option>`).join("");
-  selMarca.innerHTML = '<option value="">Todas las marcas</option>' + marcas.map((m) => `<option value="${m}">${m}</option>`).join("");
-  selInt.innerHTML = '<option value="">Todas las intervenciones</option>' + intervenciones.map((i) => `<option value="${i}">${i}</option>`).join("");
+  servicios.forEach((s) => {
+    conteoCat[s.categoria] = (conteoCat[s.categoria] || 0) + 1;
+    conteoMarca[s.marca] = (conteoMarca[s.marca] || 0) + 1;
+    conteoFecha[s.fecha] = (conteoFecha[s.fecha] || 0) + 1;
+  });
+
+  const categorias = Object.keys(conteoCat).sort((a, b) => conteoCat[b] - conteoCat[a]);
+  const marcas = Object.keys(conteoMarca).sort((a, b) => conteoMarca[b] - conteoMarca[a]);
+  const intervenciones = obtenerIntervencionesUnicas();
+  const fechas = Object.keys(conteoFecha).sort((a, b) => convertirFechaATimestamp(b) - convertirFechaATimestamp(a));
+
+  selCat.innerHTML =
+    '<option value="">Todas las categorías</option>' +
+    categorias.map((c) => `<option value="${c}">${c} (${conteoCat[c]})</option>`).join("");
+  selMarca.innerHTML =
+    '<option value="">Todas las marcas</option>' +
+    marcas.map((m) => `<option value="${m}">${m} (${conteoMarca[m]})</option>`).join("");
+  selInt.innerHTML =
+    '<option value="">Todas las intervenciones</option>' +
+    intervenciones.map((i) => `<option value="${i}">${i}</option>`).join("");
   selFecha.innerHTML =
     '<option value="">Todas las fechas</option>' +
     fechas
       .map((f) => {
         const dia = obtenerDiaSemana(f);
-        const cant = servicios.filter((s) => s.fecha === f).length;
-        return `<option value="${f}">${f} (${dia} · ${cant} serv.)</option>`;
+        return `<option value="${f}">${f} (${dia} · ${conteoFecha[f]} serv.)</option>`;
       })
       .join("");
 
@@ -497,6 +650,24 @@ function poblarSelectores() {
   selMarca.value = valMarca;
   selInt.value = valInt;
   selFecha.value = valFecha;
+}
+
+function actualizarEstadoChips(catActiva, marcaActiva) {
+  document.querySelectorAll(".chip-cat").forEach((btn) => {
+    const val = btn.getAttribute("data-cat") || "";
+    btn.className =
+      val === catActiva
+        ? "chip-cat px-3 py-1 rounded-xl text-xs font-extrabold bg-teal-600 text-white shadow-xs transition cursor-pointer"
+        : "chip-cat px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer";
+  });
+
+  document.querySelectorAll(".chip-marca").forEach((btn) => {
+    const val = btn.getAttribute("data-marca") || "";
+    btn.className =
+      val === marcaActiva
+        ? "chip-marca px-3 py-1 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-xs transition cursor-pointer"
+        : "chip-marca px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition cursor-pointer";
+  });
 }
 
 function aplicarFiltros() {
@@ -508,33 +679,40 @@ function aplicarFiltros() {
 
   if (!inpTexto || !selCat || !selMarca || !selInt || !selFecha) return;
 
-  const texto = inpTexto.value.toLowerCase().trim();
+  const textoQuery = limpiarParaBusqueda(inpTexto.value);
+  const palabras = textoQuery ? textoQuery.split(/\s+/).filter(Boolean) : [];
+  const cantPalabras = palabras.length;
+
   const cat = selCat.value;
   const marca = selMarca.value;
   const intervencion = selInt.value;
   const fecha = selFecha.value;
 
-  const filtrados = servicios.filter((item) => {
-    const diaNombre = obtenerDiaSemana(item.fecha).toLowerCase();
-    const coincideTexto =
-      !texto ||
-      item.id.toLowerCase().includes(texto) ||
-      item.modelo.toLowerCase().includes(texto) ||
-      item.trabajo.toLowerCase().includes(texto) ||
-      (item.notas || "").toLowerCase().includes(texto) ||
-      (item.precio || "").toLowerCase().includes(texto) ||
-      item.marca.toLowerCase().includes(texto) ||
-      item.fecha.toLowerCase().includes(texto) ||
-      diaNombre.includes(texto);
+  actualizarEstadoChips(cat, marca);
 
-    const coincideCat = !cat || item.categoria === cat;
-    const coincideMarca = !marca || item.marca === marca;
-    const coincideInt = !intervencion || item.intervencion.includes(intervencion);
-    const coincideFecha = !fecha || item.fecha === fecha;
+  const filtrados = [];
+  for (let i = 0; i < servicios.length; i++) {
+    const item = servicios[i];
+    if (cat && item.categoria !== cat) continue;
+    if (marca && item.marca !== marca) continue;
+    if (intervencion && !item.intervencion.includes(intervencion)) continue;
+    if (fecha && item.fecha !== fecha) continue;
 
-    return coincideTexto && coincideCat && coincideMarca && coincideInt && coincideFecha;
-  });
+    if (cantPalabras > 0) {
+      let ok = true;
+      for (let j = 0; j < cantPalabras; j++) {
+        if (!item._busqueda.includes(palabras[j])) {
+          ok = false;
+          break;
+        }
+      }
+      if (!ok) continue;
+    }
 
+    filtrados.push(item);
+  }
+
+  ultimosFiltrados = filtrados;
   renderizarVista(filtrados);
   actualizarKPIs(filtrados);
 }
@@ -563,41 +741,45 @@ function renderizarVista(lista) {
   }
 
   const conteoGemelos = {};
-  lista.forEach((it) => {
-    const clave = `${it.fecha}|${limpiarTextoComparacion(it.marca)}|${limpiarTextoComparacion(it.modelo)}|${limpiarTextoComparacion(it.trabajo)}`;
-    conteoGemelos[clave] = (conteoGemelos[clave] || 0) + 1;
-  });
+  for (let i = 0; i < lista.length; i++) {
+    const k = lista[i]._claveGemelo;
+    conteoGemelos[k] = (conteoGemelos[k] || 0) + 1;
+  }
 
-  const invertidos = [...lista].reverse();
+  const esMovil = window.innerWidth < 768;
 
-  if (listaMovil) {
-    listaMovil.innerHTML = invertidos
-      .map((item) => {
-        const dia = obtenerDiaSemana(item.fecha);
-        const clave = `${item.fecha}|${limpiarTextoComparacion(item.marca)}|${limpiarTextoComparacion(item.modelo)}|${limpiarTextoComparacion(item.trabajo)}`;
-        const esGemelo = conteoGemelos[clave] > 1;
+  if (esMovil && listaMovil) {
+    const htmlMovil = new Array(lista.length);
+    for (let i = lista.length - 1, idx = 0; i >= 0; i--, idx++) {
+      const item = lista[i];
+      const esGemelo = conteoGemelos[item._claveGemelo] > 1;
 
-        return `
+      htmlMovil[idx] = `
         <div class="p-4 space-y-2 ${esGemelo ? "bg-amber-50/40" : "hover:bg-slate-50"}">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="font-bold text-teal-700 text-sm">${item.id}</span>
               <span class="text-xs font-semibold text-slate-700">· ${item.fecha}</span>
-              <span class="text-[11px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">${dia}</span>
+              <span class="text-[11px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">${item._dia}</span>
               ${
                 esGemelo
-                  ? `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold border border-amber-300">⚠️ Repetido en fecha (${conteoGemelos[clave]}x)</span>`
+                  ? `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold border border-amber-300">⚠️ Repetido (${conteoGemelos[item._claveGemelo]}x)</span>`
                   : ""
               }
             </div>
-            <div class="flex items-center gap-2">
-              ${
+            <div class="flex items-center gap-1.5">
+              <button onclick="abrirEditarServicio('${item.id}')" class="text-xs font-extrabold px-2.5 py-1 rounded-md ${
                 item.precio
-                  ? `<span class="text-xs font-extrabold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">${item.precio}</span>`
-                  : ""
-              }
-              <button onclick="eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                  : "bg-slate-100 text-slate-600 border border-slate-300"
+              }">
+                ${item.precio || "+ Gs"}
+              </button>
+              <button onclick="abrirEditarServicio('${item.id}')" class="text-slate-400 hover:text-teal-600 p-1" title="Editar servicio">
+                ${SVG_EDIT}
+              </button>
+              <button onclick="eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1" title="Eliminar">
+                ${SVG_TRASH}
               </button>
             </div>
           </div>
@@ -613,25 +795,21 @@ function renderizarVista(lista) {
             <span><strong>Insumos:</strong> ${item.repuestos || "Ninguno"}</span>
             <span class="text-teal-800 font-semibold">${item.notas || "-"}</span>
           </div>
-        </div>
-      `;
-      })
-      .join("");
-  }
+        </div>`;
+    }
+    listaMovil.innerHTML = htmlMovil.join("");
+  } else if (tbody) {
+    const htmlTabla = new Array(lista.length);
+    for (let i = lista.length - 1, idx = 0; i >= 0; i--, idx++) {
+      const item = lista[i];
+      const esGemelo = conteoGemelos[item._claveGemelo] > 1;
 
-  if (tbody) {
-    tbody.innerHTML = invertidos
-      .map((item) => {
-        const dia = obtenerDiaSemana(item.fecha);
-        const clave = `${item.fecha}|${limpiarTextoComparacion(item.marca)}|${limpiarTextoComparacion(item.modelo)}|${limpiarTextoComparacion(item.trabajo)}`;
-        const esGemelo = conteoGemelos[clave] > 1;
-
-        return `
+      htmlTabla[idx] = `
         <tr class="${esGemelo ? "bg-amber-50/40 hover:bg-amber-50/80" : "hover:bg-slate-50"} transition">
           <td class="py-3 px-4 font-bold text-teal-700 whitespace-nowrap">${item.id}</td>
           <td class="py-3 px-4 whitespace-nowrap">
             <div class="font-semibold text-slate-800">${item.fecha}</div>
-            <div class="text-[11px] font-bold text-indigo-600 uppercase tracking-wide">${dia}</div>
+            <div class="text-[11px] font-bold text-indigo-600 uppercase tracking-wide">${item._dia}</div>
           </td>
           <td class="py-3 px-4">
             <span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-md border ${obtenerColorBadge(item.categoria)}">
@@ -647,31 +825,33 @@ function renderizarVista(lista) {
             <div>${item.trabajo}</div>
             ${
               esGemelo
-                ? `<span class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">⚠️ Mismo equipo y servicio en esta fecha (${conteoGemelos[clave]} disp.)</span>`
+                ? `<span class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">⚠️ Mismo equipo y servicio en fecha (${conteoGemelos[item._claveGemelo]}x)</span>`
                 : ""
             }
           </td>
           <td class="py-3 px-4 text-xs text-slate-600">${item.repuestos || "Ninguno"}</td>
           <td class="py-3 px-4 text-right whitespace-nowrap">
-            ${
+            <button onclick="abrirEditarServicio('${item.id}')" title="Clic para asignar o editar monto en Gs" class="cursor-pointer transition ${
               item.precio
-                ? `<span class="inline-block text-xs font-extrabold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">${item.precio}</span>`
-                : `<span class="text-xs text-slate-400">-</span>`
-            }
-          </td>
-          <td class="py-3 px-4 text-xs font-semibold text-teal-800">${item.notas || "-"}</td>
-          <td class="py-3 px-4 text-center">
-            <button onclick="eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 transition p-1" title="Eliminar registro">
-              <i data-lucide="trash-2" class="w-4 h-4"></i>
+                ? "inline-block text-xs font-extrabold px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200"
+                : "inline-block text-[11px] font-bold px-2.5 py-1 rounded-md bg-slate-100 hover:bg-teal-50 text-slate-500 hover:text-teal-700 border border-slate-200"
+            }">
+              ${item.precio || "+ Cargar Gs"}
             </button>
           </td>
-        </tr>
-      `;
-      })
-      .join("");
+          <td class="py-3 px-4 text-xs font-semibold text-teal-800">${item.notas || "-"}</td>
+          <td class="py-3 px-4 text-center whitespace-nowrap">
+            <button onclick="abrirEditarServicio('${item.id}')" class="text-slate-400 hover:text-teal-600 transition p-1" title="Editar servicio o precio">
+              ${SVG_EDIT}
+            </button>
+            <button onclick="eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 transition p-1" title="Eliminar registro">
+              ${SVG_TRASH}
+            </button>
+          </td>
+        </tr>`;
+    }
+    tbody.innerHTML = htmlTabla.join("");
   }
-
-  inicializarIconos();
 }
 
 function calcularModa(arr) {
@@ -712,12 +892,325 @@ function actualizarKPIs(filtrados) {
   if (kInt) kInt.textContent = calcularModa(todasLasIntervenciones);
 }
 
+// ============================================================================
+// BÓVEDA DE INGRESOS Y ESTADÍSTICAS FINANCIERAS (CONTRASEÑA: 1212)
+// ============================================================================
+function calcularEstadisticasIngresos() {
+  let totalGs = 0;
+  let totalConPrecio = 0;
+  const porSemana = {};
+  const porMes = {};
+  const porDia = {};
+  const porCategoria = {};
+
+  servicios.forEach((s) => {
+    const monto = s._monto || 0;
+    const semKey = s._semanaKey || "Sin fecha";
+    const semLabel = s._semanaLabel || "Semana sin fecha";
+    const mesKey = s._mesKey || "Sin mes";
+    const mesLabel = s._mesLabel || "Mes sin fecha";
+
+    if (!porSemana[semKey]) {
+      porSemana[semKey] = { key: semKey, label: semLabel, totalGs: 0, totalServicios: 0, cobrados: 0 };
+    }
+    porSemana[semKey].totalServicios++;
+    if (monto > 0) {
+      porSemana[semKey].totalGs += monto;
+      porSemana[semKey].cobrados++;
+    }
+
+    if (!porMes[mesKey]) {
+      porMes[mesKey] = { key: mesKey, label: mesLabel, totalGs: 0, totalServicios: 0, cobrados: 0 };
+    }
+    porMes[mesKey].totalServicios++;
+    if (monto > 0) {
+      porMes[mesKey].totalGs += monto;
+      porMes[mesKey].cobrados++;
+    }
+
+    if (!porDia[s.fecha]) {
+      porDia[s.fecha] = {
+        fecha: s.fecha,
+        dia: s._dia,
+        timestamp: s._timestamp,
+        totalGs: 0,
+        totalServicios: 0,
+        cobrados: 0
+      };
+    }
+    porDia[s.fecha].totalServicios++;
+    if (monto > 0) {
+      porDia[s.fecha].totalGs += monto;
+      porDia[s.fecha].cobrados++;
+    }
+
+    if (!porCategoria[s.categoria]) {
+      porCategoria[s.categoria] = { categoria: s.categoria, totalGs: 0, totalServicios: 0, cobrados: 0 };
+    }
+    porCategoria[s.categoria].totalServicios++;
+    if (monto > 0) {
+      porCategoria[s.categoria].totalGs += monto;
+      porCategoria[s.categoria].cobrados++;
+    }
+
+    if (monto > 0) {
+      totalGs += monto;
+      totalConPrecio++;
+    }
+  });
+
+  const listaSemanas = Object.values(porSemana).sort((a, b) => b.key.localeCompare(a.key));
+  const listaMeses = Object.values(porMes).sort((a, b) => b.key.localeCompare(a.key));
+  const listaDias = Object.values(porDia).sort((a, b) => b.timestamp - a.timestamp);
+  const listaCategorias = Object.values(porCategoria).sort((a, b) => b.totalGs - a.totalGs || b.totalServicios - a.totalServicios);
+
+  // Determinar Mejor Semana, Mejor Mes y Mejor Día (por monto en Gs; si hay empate en 0, por cantidad de servicios)
+  const mejorSemana =
+    [...listaSemanas].sort((a, b) => b.totalGs - a.totalGs || b.totalServicios - a.totalServicios)[0] || null;
+  const mejorMes =
+    [...listaMeses].sort((a, b) => b.totalGs - a.totalGs || b.totalServicios - a.totalServicios)[0] || null;
+  const mejorDia =
+    [...listaDias].sort((a, b) => b.totalGs - a.totalGs || b.totalServicios - a.totalServicios)[0] || null;
+
+  return {
+    totalGs,
+    totalServicios: servicios.length,
+    totalConPrecio,
+    promedioPorCobrado: totalConPrecio > 0 ? Math.round(totalGs / totalConPrecio) : 0,
+    listaSemanas,
+    listaMeses,
+    listaCategorias,
+    mejorSemana,
+    mejorMes,
+    mejorDia
+  };
+}
+
+function renderizarPanelIngresos() {
+  const stats = calcularEstadisticasIngresos();
+
+  const elTotal = document.getElementById("fin-ingreso-total");
+  const elTotalSub = document.getElementById("fin-ingreso-total-sub");
+  const elPromedio = document.getElementById("fin-promedio-ticket");
+
+  const selSemana = document.getElementById("fin-select-semana");
+  const elMontoSemana = document.getElementById("fin-ingreso-semanal");
+  const elSubSemana = document.getElementById("fin-ingreso-semanal-sub");
+
+  const selMes = document.getElementById("fin-select-mes");
+  const elMontoMes = document.getElementById("fin-ingreso-mensual");
+  const elSubMes = document.getElementById("fin-ingreso-mensual-sub");
+
+  const elMejorSemanaMonto = document.getElementById("fin-mejor-semana-monto");
+  const elMejorSemanaNombre = document.getElementById("fin-mejor-semana-nombre");
+  const elMejorMesMonto = document.getElementById("fin-mejor-mes-monto");
+  const elMejorMesNombre = document.getElementById("fin-mejor-mes-nombre");
+  const elMejorDiaMonto = document.getElementById("fin-mejor-dia-monto");
+  const elMejorDiaNombre = document.getElementById("fin-mejor-dia-nombre");
+
+  if (elTotal) elTotal.textContent = formatearGuaranies(stats.totalGs) || "0 Gs";
+  if (elTotalSub) {
+    elTotalSub.textContent = `${stats.totalConPrecio} servicio(s) con monto de ${stats.totalServicios} registrados`;
+  }
+  if (elPromedio) {
+    elPromedio.textContent = stats.promedioPorCobrado > 0 ? formatearGuaranies(stats.promedioPorCobrado) : "0 Gs";
+  }
+
+  // Selector de Semana
+  if (selSemana) {
+    const prevSem = selSemana.value;
+    selSemana.innerHTML = stats.listaSemanas
+      .map((s) => `<option value="${s.key}">${s.label} (${s.totalServicios} serv.)</option>`)
+      .join("");
+    if (prevSem && stats.listaSemanas.some((x) => x.key === prevSem)) {
+      selSemana.value = prevSem;
+    } else if (stats.listaSemanas.length > 0) {
+      selSemana.value = stats.listaSemanas[0].key;
+    }
+
+    const semActualObj = stats.listaSemanas.find((x) => x.key === selSemana.value) || stats.listaSemanas[0];
+    if (semActualObj) {
+      elMontoSemana.textContent = formatearGuaranies(semActualObj.totalGs) || "0 Gs";
+      elSubSemana.textContent = `${semActualObj.cobrados} cobrado(s) de ${semActualObj.totalServicios} servicio(s) en esa semana`;
+    }
+  }
+
+  // Selector de Mes
+  if (selMes) {
+    const prevMes = selMes.value;
+    selMes.innerHTML = stats.listaMeses
+      .map((m) => `<option value="${m.key}">${m.label} (${m.totalServicios} serv.)</option>`)
+      .join("");
+    if (prevMes && stats.listaMeses.some((x) => x.key === prevMes)) {
+      selMes.value = prevMes;
+    } else if (stats.listaMeses.length > 0) {
+      selMes.value = stats.listaMeses[0].key;
+    }
+
+    const mesActualObj = stats.listaMeses.find((x) => x.key === selMes.value) || stats.listaMeses[0];
+    if (mesActualObj) {
+      elMontoMes.textContent = formatearGuaranies(mesActualObj.totalGs) || "0 Gs";
+      elSubMes.textContent = `${mesActualObj.cobrados} cobrado(s) de ${mesActualObj.totalServicios} servicio(s) en ese mes`;
+    }
+  }
+
+  // Récords Históricos (Mejor Semana, Mejor Mes, Mejor Día)
+  if (stats.mejorSemana) {
+    elMejorSemanaMonto.textContent = formatearGuaranies(stats.mejorSemana.totalGs) || "0 Gs";
+    elMejorSemanaNombre.textContent = `${stats.mejorSemana.label} · ${stats.mejorSemana.totalServicios} serv. (${stats.mejorSemana.cobrados} con precio)`;
+  }
+  if (stats.mejorMes) {
+    elMejorMesMonto.textContent = formatearGuaranies(stats.mejorMes.totalGs) || "0 Gs";
+    elMejorMesNombre.textContent = `${stats.mejorMes.label} · ${stats.mejorMes.totalServicios} serv. (${stats.mejorMes.cobrados} con precio)`;
+  }
+  if (stats.mejorDia) {
+    elMejorDiaMonto.textContent = formatearGuaranies(stats.mejorDia.totalGs) || "0 Gs";
+    elMejorDiaNombre.textContent = `${stats.mejorDia.fecha} (${stats.mejorDia.dia}) · ${stats.mejorDia.totalServicios} serv.`;
+  }
+
+  // Tabla / Barras de Todas las Semanas
+  const contSemanas = document.getElementById("fin-lista-semanas");
+  const maxSemGs = stats.mejorSemana && stats.mejorSemana.totalGs > 0 ? stats.mejorSemana.totalGs : 1;
+  if (contSemanas) {
+    contSemanas.innerHTML = stats.listaSemanas
+      .map((s) => {
+        const esRecord = stats.mejorSemana && stats.mejorSemana.key === s.key && s.totalGs > 0;
+        const pct = s.totalGs > 0 ? Math.max(6, Math.round((s.totalGs / maxSemGs) * 100)) : 0;
+        return `
+          <div class="p-3 rounded-xl border ${
+            esRecord ? "bg-amber-50/70 border-amber-300" : "bg-slate-50 border-slate-200"
+          } space-y-1.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div class="flex items-center gap-1.5">
+                <span class="font-extrabold text-slate-900">${s.label}</span>
+                ${
+                  esRecord
+                    ? `<span class="px-2 py-0.5 rounded-full bg-amber-400/30 text-amber-900 border border-amber-400 font-black text-[10px] uppercase">🏆 Mejor Semana</span>`
+                    : ""
+                }
+              </div>
+              <span class="font-black text-sm ${s.totalGs > 0 ? "text-emerald-700" : "text-slate-400"}">
+                ${formatearGuaranies(s.totalGs) || "0 Gs"}
+              </span>
+            </div>
+            <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div class="h-full ${esRecord ? "bg-amber-500" : "bg-emerald-600"} rounded-full" style="width: ${pct}%"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-500">
+              <span>Total servicios atendidos: <strong>${s.totalServicios}</strong></span>
+              <span>Con monto cargado: <strong>${s.cobrados}</strong></span>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  // Tabla / Barras de Todos los Meses
+  const contMeses = document.getElementById("fin-lista-meses");
+  const maxMesGs = stats.mejorMes && stats.mejorMes.totalGs > 0 ? stats.mejorMes.totalGs : 1;
+  if (contMeses) {
+    contMeses.innerHTML = stats.listaMeses
+      .map((m) => {
+        const esRecord = stats.mejorMes && stats.mejorMes.key === m.key && m.totalGs > 0;
+        const pct = m.totalGs > 0 ? Math.max(8, Math.round((m.totalGs / maxMesGs) * 100)) : 0;
+        return `
+          <div class="p-3 rounded-xl border ${
+            esRecord ? "bg-emerald-50/70 border-emerald-300" : "bg-slate-50 border-slate-200"
+          } space-y-1.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div class="flex items-center gap-1.5">
+                <span class="font-extrabold text-slate-900">${m.label}</span>
+                ${
+                  esRecord
+                    ? `<span class="px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 border border-emerald-400 font-black text-[10px] uppercase">🏆 Mejor Mes</span>`
+                    : ""
+                }
+              </div>
+              <span class="font-black text-sm ${m.totalGs > 0 ? "text-emerald-700" : "text-slate-400"}">
+                ${formatearGuaranies(m.totalGs) || "0 Gs"}
+              </span>
+            </div>
+            <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div class="h-full ${esRecord ? "bg-emerald-600" : "bg-teal-600"} rounded-full" style="width: ${pct}%"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-500">
+              <span>Servicios del mes: <strong>${m.totalServicios}</strong></span>
+              <span>Con monto cargado: <strong>${m.cobrados}</strong></span>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  // Desglose por Categoría
+  const contCats = document.getElementById("fin-lista-categorias");
+  if (contCats) {
+    contCats.innerHTML = stats.listaCategorias
+      .map(
+        (c) => `
+        <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+          <div>
+            <span class="font-bold text-slate-800 block">${c.categoria}</span>
+            <span class="text-[11px] text-slate-500">${c.totalServicios} serv. (${c.cobrados} con monto)</span>
+          </div>
+          <span class="font-extrabold text-emerald-700">${formatearGuaranies(c.totalGs) || "0 Gs"}</span>
+        </div>
+      `
+      )
+      .join("");
+  }
+}
+
+// ============================================================================
+// CREACIÓN Y EDICIÓN DE SERVICIOS INDIVIDUALES
+// ============================================================================
+window.abrirEditarServicio = function (id) {
+  const item = servicios.find((s) => s.id === id);
+  if (!item) return;
+
+  const modal = document.getElementById("modal-registro");
+  const titulo = document.getElementById("titulo-modal-registro");
+  const inpEditId = document.getElementById("inp-edit-id");
+
+  if (titulo) titulo.textContent = `Editar Servicio ${item.id}`;
+  if (inpEditId) inpEditId.value = item.id;
+
+  document.getElementById("inp-fecha").value = convertirFechaAYYYYMMDD(item.fecha);
+  document.getElementById("inp-categoria").value = item.categoria;
+  document.getElementById("inp-marca").value = item.marca;
+  document.getElementById("inp-modelo").value = item.modelo;
+  document.getElementById("inp-trabajo").value = item.trabajo;
+  document.getElementById("inp-repuestos").value = item.repuestos === "Ninguno" ? "" : item.repuestos;
+  document.getElementById("inp-precio").value = item.precio || "";
+  document.getElementById("inp-notas").value = item.notas || "";
+
+  const partesInt = String(item.intervencion || "")
+    .split("+")
+    .map((x) => x.trim());
+  document.querySelectorAll('input[name="intervencion-check"]').forEach((chk) => {
+    chk.checked = partesInt.includes(chk.value);
+  });
+
+  document.getElementById("error-intervencion").classList.add("hidden");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+
+  setTimeout(() => {
+    const elPrecio = document.getElementById("inp-precio");
+    if (elPrecio) elPrecio.focus();
+  }, 80);
+};
+
 window.eliminarServicio = function (id) {
-  if (!confirm(`¿Seguro que deseas eliminar el registro ${id}?`)) return;
+  if (!confirm(`¿Seguro que deseas eliminar permanentemente el registro ${id}?`)) return;
+  registrarIdEliminado(id);
   servicios = servicios.filter((s) => s.id !== id);
   guardarLocal();
   poblarSelectores();
   aplicarFiltros();
+  if (bovedaDesbloqueada) renderizarPanelIngresos();
 };
 
 window.quitarFilaDeLote = function (idx) {
@@ -740,7 +1233,7 @@ function generarNuevoID(offset = 1) {
 }
 
 // ============================================================================
-// MOTOR INTELIGENTE DE PROCESAMIENTO DE TEXTO SEMANAL, EQUIPOS Y PRECIOS (GS)
+// MOTOR INTELIGENTE DE PROCESAMIENTO DE TEXTO SEMANAL
 // ============================================================================
 function obtenerLunesActualYYYYMMDD() {
   const hoy = new Date();
@@ -1077,7 +1570,7 @@ function renderizarPreviewLote() {
               ⚠️ Alerta: Se detectaron ${itemsConAlerta.length} servicio(s) repetido(s) en la misma fecha
             </h4>
             <p class="text-xs text-amber-800">
-              Verifica si se cargó dos veces por error o si realmente se realizó el mismo servicio a dos equipos distintos en esa fecha. Puedes quitar una fila con el botón <strong>"Quitar"</strong> o continuar:
+              Verifica si se cargó dos veces por error o si realmente se realizó el mismo servicio a dos equipos distintos en esa fecha:
             </p>
             <ul class="text-xs text-amber-950 space-y-1 pt-1">
               ${itemsConAlerta
@@ -1199,14 +1692,55 @@ function renderizarPreviewLote() {
 }
 
 function configurarEventos() {
-  ["filtro-texto", "filtro-categoria", "filtro-marca", "filtro-intervencion", "filtro-fecha"].forEach((id) => {
+  const inpTexto = document.getElementById("filtro-texto");
+  if (inpTexto) {
+    inpTexto.addEventListener("input", () => {
+      if (timerBusqueda) clearTimeout(timerBusqueda);
+      timerBusqueda = setTimeout(() => {
+        aplicarFiltros();
+      }, 75);
+    });
+  }
+
+  ["filtro-categoria", "filtro-marca", "filtro-intervencion", "filtro-fecha"].forEach((id) => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener("input", aplicarFiltros);
+    if (el) el.addEventListener("change", aplicarFiltros);
+  });
+
+  document.querySelectorAll(".chip-cat").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const cat = btn.getAttribute("data-cat") || "";
+      const selCat = document.getElementById("filtro-categoria");
+      if (selCat) {
+        selCat.value = selCat.value === cat ? "" : cat;
+        aplicarFiltros();
+      }
+    });
+  });
+
+  document.querySelectorAll(".chip-marca").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const marca = btn.getAttribute("data-marca") || "";
+      const selMarca = document.getElementById("filtro-marca");
+      if (selMarca) {
+        selMarca.value = selMarca.value === marca ? "" : marca;
+        aplicarFiltros();
+      }
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    const ahoraMovil = window.innerWidth < 768;
+    if (ahoraMovil !== ultimoAnchoMovil) {
+      ultimoAnchoMovil = ahoraMovil;
+      renderizarVista(ultimosFiltrados);
+    }
   });
 
   const btnLimpiar = document.getElementById("btn-limpiar");
   if (btnLimpiar) {
     btnLimpiar.addEventListener("click", () => {
+      if (timerBusqueda) clearTimeout(timerBusqueda);
       document.getElementById("filtro-texto").value = "";
       document.getElementById("filtro-categoria").value = "";
       document.getElementById("filtro-marca").value = "";
@@ -1216,8 +1750,111 @@ function configurarEventos() {
     });
   }
 
+  // EVENTOS DEL APARTADO DE INGRESOS (LOGO + PIN 1212)
+  const btnAbrirBoveda = document.getElementById("btn-abrir-boveda");
+  const modalPinIngresos = document.getElementById("modal-pin-ingresos");
+  const formPinIngresos = document.getElementById("form-pin-ingresos");
+  const inpPinIngresos = document.getElementById("inp-pin-ingresos");
+  const errorPinIngresos = document.getElementById("error-pin-ingresos");
+  const btnCerrarPinIngresos = document.getElementById("btn-cerrar-pin-ingresos");
+
+  const modalIngresos = document.getElementById("modal-ingresos");
+  const btnCerrarIngresos = document.getElementById("btn-cerrar-ingresos");
+  const btnBloquearBoveda = document.getElementById("btn-bloquear-boveda");
+  const selFinSemana = document.getElementById("fin-select-semana");
+  const selFinMes = document.getElementById("fin-select-mes");
+
+  if (btnAbrirBoveda) {
+    btnAbrirBoveda.addEventListener("click", () => {
+      if (bovedaDesbloqueada) {
+        renderizarPanelIngresos();
+        modalIngresos.classList.remove("hidden");
+        modalIngresos.classList.add("flex");
+        inicializarIconos();
+      } else {
+        inpPinIngresos.value = "";
+        errorPinIngresos.classList.add("hidden");
+        modalPinIngresos.classList.remove("hidden");
+        modalPinIngresos.classList.add("flex");
+        setTimeout(() => inpPinIngresos.focus(), 60);
+      }
+    });
+  }
+
+  if (btnCerrarPinIngresos) {
+    btnCerrarPinIngresos.addEventListener("click", () => {
+      modalPinIngresos.classList.add("hidden");
+      modalPinIngresos.classList.remove("flex");
+    });
+  }
+
+  if (formPinIngresos) {
+    formPinIngresos.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (inpPinIngresos.value.trim() === PIN_INGRESOS) {
+        bovedaDesbloqueada = true;
+        errorPinIngresos.classList.add("hidden");
+        inpPinIngresos.value = "";
+        modalPinIngresos.classList.add("hidden");
+        modalPinIngresos.classList.remove("flex");
+
+        renderizarPanelIngresos();
+        modalIngresos.classList.remove("hidden");
+        modalIngresos.classList.add("flex");
+        inicializarIconos();
+      } else {
+        errorPinIngresos.classList.remove("hidden");
+        inpPinIngresos.value = "";
+        inpPinIngresos.focus();
+      }
+    });
+  }
+
+  if (btnCerrarIngresos) {
+    btnCerrarIngresos.addEventListener("click", () => {
+      modalIngresos.classList.add("hidden");
+      modalIngresos.classList.remove("flex");
+    });
+  }
+
+  if (btnBloquearBoveda) {
+    btnBloquearBoveda.addEventListener("click", () => {
+      bovedaDesbloqueada = false;
+      modalIngresos.classList.add("hidden");
+      modalIngresos.classList.remove("flex");
+    });
+  }
+
+  if (selFinSemana) {
+    selFinSemana.addEventListener("change", () => {
+      const stats = calcularEstadisticasIngresos();
+      const semObj = stats.listaSemanas.find((x) => x.key === selFinSemana.value);
+      if (semObj) {
+        document.getElementById("fin-ingreso-semanal").textContent = formatearGuaranies(semObj.totalGs) || "0 Gs";
+        document.getElementById("fin-ingreso-semanal-sub").textContent = `${semObj.cobrados} cobrado(s) de ${semObj.totalServicios} servicio(s) en esa semana`;
+      }
+    });
+  }
+
+  if (selFinMes) {
+    selFinMes.addEventListener("change", () => {
+      const stats = calcularEstadisticasIngresos();
+      const mesObj = stats.listaMeses.find((x) => x.key === selFinMes.value);
+      if (mesObj) {
+        document.getElementById("fin-ingreso-mensual").textContent = formatearGuaranies(mesObj.totalGs) || "0 Gs";
+        document.getElementById("fin-ingreso-mensual-sub").textContent = `${mesObj.cobrados} cobrado(s) de ${mesObj.totalServicios} servicio(s) en ese mes`;
+      }
+    });
+  }
+
+  // MODAL DE NUEVO / EDITAR SERVICIO
   const modal = document.getElementById("modal-registro");
   const abrirModalNuevo = () => {
+    const form = document.getElementById("form-servicio");
+    if (form) form.reset();
+    document.getElementById("inp-edit-id").value = "";
+    const titulo = document.getElementById("titulo-modal-registro");
+    if (titulo) titulo.textContent = "Registrar Nuevo Servicio Técnico";
     document.getElementById("inp-fecha").valueAsDate = new Date();
     document.getElementById("error-intervencion").classList.add("hidden");
     modal.classList.remove("hidden");
@@ -1253,6 +1890,7 @@ function configurarEventos() {
       }
       errorInt.classList.add("hidden");
 
+      const editId = document.getElementById("inp-edit-id").value.trim();
       const trabajoRaw = document.getElementById("inp-trabajo").value.trim();
       const ext = extraerPrecioDeTexto(trabajoRaw);
       const inpPrecioEl = document.getElementById("inp-precio");
@@ -1260,8 +1898,8 @@ function configurarEventos() {
       const precioFinal = precioInput ? formatearGuaranies(precioInput) : ext.precio;
       const trabajoTxt = ext.precio ? ext.textoSinPrecio : trabajoRaw;
 
-      const nuevo = {
-        id: generarNuevoID(1),
+      const datosBase = {
+        id: editId || generarNuevoID(1),
         fecha: formatearFechaInput(document.getElementById("inp-fecha").value),
         categoria: document.getElementById("inp-categoria").value,
         marca: document.getElementById("inp-marca").value.trim(),
@@ -1275,34 +1913,43 @@ function configurarEventos() {
         tecnico: TECNICO_NOMBRE
       };
 
-      const duplicadosPrevios = verificarDuplicadoIndividual(nuevo);
-      if (duplicadosPrevios.length > 0) {
+      const duplicadosPrevios = verificarDuplicadoIndividual(datosBase, editId || null);
+      if (!editId && duplicadosPrevios.length > 0) {
         const detalleExistentes = duplicadosPrevios
           .map((d) => `• ${d.id} (${d.fecha}): ${d.marca} ${d.modelo} - ${d.trabajo} ${d.precio ? `[${d.precio}]` : ""}`)
           .join("\n");
 
         const confirmar = confirm(
-          `⚠️ ALERTA DE SERVICIO REPETIDO EN LA MISMA FECHA (${nuevo.fecha}):\n\n` +
+          `⚠️ ALERTA DE SERVICIO REPETIDO EN LA MISMA FECHA (${datosBase.fecha}):\n\n` +
             `Ya existe(n) registro(s) muy similar(es) en ese mismo día:\n${detalleExistentes}\n\n` +
-            `¿Confirmas que se realizó el mismo servicio a otro equipo distinto (Aceptar) o deseas cancelar por si fue un error (Cancelar)?`
+            `¿Confirmas que se realizó el mismo servicio a otro equipo distinto (Aceptar) o deseas cancelar (Cancelar)?`
         );
         if (!confirmar) return;
       }
 
-      servicios.push(nuevo);
+      const [registroNormalizado] = normalizarRegistros([datosBase]);
+
+      if (editId) {
+        const idx = servicios.findIndex((s) => s.id === editId);
+        if (idx !== -1) servicios[idx] = registroNormalizado;
+      } else {
+        servicios.push(registroNormalizado);
+      }
+
       guardarLocal();
       poblarSelectores();
       aplicarFiltros();
+      if (bovedaDesbloqueada) renderizarPanelIngresos();
       e.target.reset();
       cerrarModal();
 
       if (driveUrl) {
-        enviarFilaADrive(nuevo);
+        enviarFilaADrive(datosBase);
       }
     });
   }
 
-  // EVENTOS DEL MODAL DE CARGA RÁPIDA Y CLASIFICADOR CON DETECTOR DE REPETIDOS
+  // EVENTOS DEL MODAL DE CARGA RÁPIDA SEMANAL
   const modalLote = document.getElementById("modal-lote");
   const btnCargaLote = document.getElementById("btn-carga-lote");
   const btnCerrarLote = document.getElementById("btn-cerrar-lote");
@@ -1370,7 +2017,7 @@ function configurarEventos() {
         if (!ok) return;
       }
 
-      const nuevosConID = loteTemporal.map((item, idx) => {
+      const nuevosCrudos = loteTemporal.map((item, idx) => {
         const copia = { ...item };
         delete copia.diaSemana;
         delete copia.alertasDuplicado;
@@ -1380,18 +2027,20 @@ function configurarEventos() {
         };
       });
 
-      servicios.push(...nuevosConID);
+      const nuevosNormalizados = normalizarRegistros(nuevosCrudos);
+      servicios.push(...nuevosNormalizados);
       guardarLocal();
       poblarSelectores();
       aplicarFiltros();
+      if (bovedaDesbloqueada) renderizarPanelIngresos();
       cerrarModalLote();
 
       if (driveUrl) {
-        for (const reg of nuevosConID) {
+        for (const reg of nuevosCrudos) {
           await enviarFilaADrive(reg);
         }
       }
-      alert(`¡Se guardaron ${nuevosConID.length} servicios correctamente!`);
+      alert(`¡Se guardaron ${nuevosNormalizados.length} servicios correctamente!`);
     });
   }
 
@@ -1399,10 +2048,10 @@ function configurarEventos() {
   if (btnExportar) {
     btnExportar.addEventListener("click", () => {
       const encabezados = ["ID", "Fecha", "Día", "Categoría", "Marca", "Modelo", "Tipo de Intervención", "Trabajo Realizado", "Repuestos", "Precio (Gs)", "Estado", "Cliente / Notas"];
-      const filas = servicios.map((s) => [
+      const filas = ultimosFiltrados.map((s) => [
         s.id,
         s.fecha,
-        obtenerDiaSemana(s.fecha),
+        s._dia,
         s.categoria,
         s.marca,
         s.modelo,
@@ -1419,7 +2068,7 @@ function configurarEventos() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "BD_Servicios_Tecnicos_DN.csv";
+      a.download = "BD_Servicios_Tecnicos_Angel_Villalba.csv";
       a.click();
     });
   }
@@ -1499,7 +2148,10 @@ async function subirBaseCompletaADrive() {
       console.warn("No se pudieron leer registros previos, enviando lote.", err);
     }
 
-    const baseUnificada = [...servicios, ...registrosJunior];
+    const copiaLimpia = servicios.map(
+      ({ _dia, _mesKey, _mesLabel, _semanaKey, _semanaLabel, _timestamp, _monto, _claveGemelo, _busqueda, ...resto }) => resto
+    );
+    const baseUnificada = [...copiaLimpia, ...registrosJunior];
 
     await fetch(driveUrl, {
       method: "POST",
@@ -1508,7 +2160,7 @@ async function subirBaseCompletaADrive() {
       body: JSON.stringify({ action: "bulk", rows: baseUnificada })
     });
     actualizarBadgeDrive(true);
-    alert(`¡Sincronización completa! Se guardaron tus ${servicios.length} servicios junto con los ${registrosJunior.length} servicios de Junior en tu Google Drive.`);
+    alert(`¡Sincronización completa! Se guardaron tus ${servicios.length} servicios junto con los ${registrosJunior.length} servicios de Junior en Google Drive.`);
   } catch (e) {
     alert("Error al subir a Google Drive.");
   }
@@ -1516,7 +2168,8 @@ async function subirBaseCompletaADrive() {
 
 async function sincronizarDesdeDrive() {
   try {
-    const res = await fetch(driveUrl);
+    const separador = driveUrl.includes("?") ? "&" : "?";
+    const res = await fetch(`${driveUrl}${separador}t=${Date.now()}`, { cache: "no-store" });
     const data = await res.json();
     if (Array.isArray(data) && data.length > 0) {
       const soloAngel = data.filter((r) => String(r.id || "").toUpperCase().startsWith("SER-"));
