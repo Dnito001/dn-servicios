@@ -6,14 +6,15 @@ const STORAGE_KEY = "dn_servicios_db_fija_v9";
 const FINANZAS_DB_KEY = "dn_boveda_finanzas_1212_v9";
 const ELIMINADOS_KEY = "dn_servicios_eliminados_manual_v10";
 const PENDIENTE_SYNC_KEY = "dn_servicios_pendiente_sync_v11";
+const JUNIOR_KEY = "dn_servicios_junior_v11";
 const DRIVE_URL_KEY = "dn_servicios_drive_url";
 
 const DEFAULT_DRIVE_URL = "https://script.google.com/macros/s/AKfycbxezjx2ilDKOrdGQXrE3bHUO3cnMnMFDoDl3FJ7SX1xGTU-HmLXqWHrNB3h2IzcIrPF-g/exec";
 
-const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a.5.5 0 0 1 .506-.854z"/></svg>`;
+const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-// BASE INICIAL (SE USA DE RESPALDO MIENTRAS DESCARGA LA BASE REAL DESDE GOOGLE DRIVE)
+// BASE INICIAL (SE USA DE RESPALDO)
 const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
@@ -69,28 +70,18 @@ let bovedaDesbloqueada = false;
 let timerBusqueda = null;
 let syncEnCurso = false;
 let timerSubidaAutomatica = null;
-let cacheRegistrosJunior = [];
-let ultimoSyncDriveTs = 0;
 let ultimoAnchoMovil = window.innerWidth < 768;
 let driveUrl = localStorage.getItem(DRIVE_URL_KEY) || DEFAULT_DRIVE_URL;
 
-// ============================================================================
-// FETCH CON TIEMPO LÍMITE (EVITA QUE SE QUEDE COLGADO EN REDES MÓVILES)
-// ============================================================================
-async function fetchConTimeout(url, opciones = {}, timeoutMs = 10000) {
-  const controller = new AbortController();
-  const idTimer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const respuesta = await fetch(url, {
-      ...opciones,
-      signal: controller.signal
-    });
-    return respuesta;
-  } finally {
-    clearTimeout(idTimer);
-  }
-}
+// Recuperar los registros de Junior guardados en caché local (si existen)
+let cacheRegistrosJunior = [];
+try {
+  cacheRegistrosJunior = JSON.parse(localStorage.getItem(JUNIOR_KEY) || "[]");
+} catch (e) {}
 
+// ============================================================================
+// SISTEMA DE ESTADO PENDIENTE DE SUBIDA
+// ============================================================================
 function tieneSubidaPendiente() {
   return localStorage.getItem(PENDIENTE_SYNC_KEY) === "true";
 }
@@ -657,7 +648,7 @@ function configurarSeguridad() {
 }
 
 // ============================================================================
-// CARGA, GUARDADO LOCAL Y SINCRONIZACIÓN AUTOMÁTICA ROBUSTA PARA MÓVILES Y PC
+// CARGA, GUARDADO LOCAL Y SINCRONIZACIÓN AUTOMÁTICA ULTRA-RÁPIDA (FIRE & FORGET)
 // ============================================================================
 function ordenarPorFechaYNumero(lista) {
   return [...lista].sort((a, b) => {
@@ -675,7 +666,6 @@ function cargarBaseDeDatos() {
   localStorage.removeItem("dn_servicios_eliminados_v8");
 
   let listaCargada = null;
-
   const clavesBusqueda = [
     STORAGE_KEY,
     "dn_servicios_db_principal_v8",
@@ -706,7 +696,6 @@ function cargarBaseDeDatos() {
 
   servicios = normalizarRegistros(ordenarPorFechaYNumero(filtradaSinEliminados));
   guardarLocal();
-
   poblarSelectores();
   aplicarFiltros();
 
@@ -728,10 +717,11 @@ function guardarLocal() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(copiaLimpia));
 }
 
+// Envía a la cola para subir en segundo plano inmediatamente
 function programarSubidaAutomaticaADrive() {
   if (!driveUrl) return;
   marcarSubidaPendiente(true);
-  actualizarBadgeDrive(true, "Guardando cambios...");
+  actualizarBadgeDrive(true, "Guardando en Drive...");
 
   if (timerSubidaAutomatica) clearTimeout(timerSubidaAutomatica);
   timerSubidaAutomatica = setTimeout(() => {
@@ -739,11 +729,12 @@ function programarSubidaAutomaticaADrive() {
   }, 200);
 }
 
+// Procesa la cola de subidas sin colgarse
 async function ejecutarColaSubidaDrive() {
   if (!driveUrl || !tieneSubidaPendiente()) return;
 
   if (syncEnCurso) {
-    setTimeout(ejecutarColaSubidaDrive, 600);
+    setTimeout(ejecutarColaSubidaDrive, 1000);
     return;
   }
 
@@ -751,14 +742,45 @@ async function ejecutarColaSubidaDrive() {
   const exito = await respaldarEnDriveSilencioso();
 
   if (!exito) {
+    // Si falla de verdad, vuelve a intentarlo en 5 segundos.
     marcarSubidaPendiente(true);
-    actualizarBadgeDrive(true, "Sin red · Reintentando...");
-    setTimeout(ejecutarColaSubidaDrive, 4000);
+    setTimeout(ejecutarColaSubidaDrive, 5000);
     return;
   }
 
+  // Si editaste otro servicio mientras se subía el anterior, reintenta instantáneamente.
   if (tieneSubidaPendiente()) {
-    setTimeout(ejecutarColaSubidaDrive, 300);
+    setTimeout(ejecutarColaSubidaDrive, 500);
+  }
+}
+
+// Sube los datos directamente sin hacer una petición GET innecesaria primero
+async function respaldarEnDriveSilencioso() {
+  if (!driveUrl) return false;
+  syncEnCurso = true;
+  actualizarBadgeDrive(true, "Guardando en Drive...");
+
+  try {
+    const filasAngelParaDrive = servicios.map((s) => empaquetarRegistroParaDrive(s));
+    // Fusiona tus filas locales con las de Junior guardadas en memoria para no borrarlas
+    const baseUnificada = [...filasAngelParaDrive, ...cacheRegistrosJunior];
+
+    // Llamada fire and forget, super ligera y rápida en móviles.
+    await fetch(driveUrl, {
+      method: "POST",
+      mode: "no-cors", // Oculta errores de CORS y aceleras el envío, ideal para App Script
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "bulk", rows: baseUnificada })
+    });
+
+    actualizarBadgeDrive(true, "Google Drive Sincronizado ✓");
+    return true;
+  } catch (e) {
+    console.warn("Fallo temporal de conexión al guardar:", e);
+    actualizarBadgeDrive(true, "Sin conexión · Reintentando...");
+    return false;
+  } finally {
+    syncEnCurso = false;
   }
 }
 
@@ -814,16 +836,15 @@ function fusionarServiciosLocalYDrive(listaLocal, listaDriveNorm) {
 }
 
 async function sincronizarDesdeDrive(subirSiLocalMasCompleto = true) {
+  // Solo se usa al abrir la app. Descarga todos los registros para actualizar.
   if (!driveUrl || syncEnCurso || tieneSubidaPendiente()) return;
   syncEnCurso = true;
-  actualizarBadgeDrive(true, "Sincronizando con Drive...");
+  actualizarBadgeDrive(true, "Descargando de Drive...");
 
   try {
     const sep = driveUrl.includes("?") ? "&" : "?";
-    const res = await fetchConTimeout(`${driveUrl}${sep}t=${Date.now()}`, { cache: "no-store" }, 10000);
+    const res = await fetch(`${driveUrl}${sep}t=${Date.now()}`, { cache: "no-store" });
     const data = await res.json();
-
-    ultimoSyncDriveTs = Date.now();
 
     if (tieneSubidaPendiente()) {
       syncEnCurso = false;
@@ -831,24 +852,17 @@ async function sincronizarDesdeDrive(subirSiLocalMasCompleto = true) {
       return;
     }
 
-    const listaCruda = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.rows)
-      ? data.rows
-      : Array.isArray(data?.data)
-      ? data.data
-      : [];
+    const listaCruda = Array.isArray(data) ? data : (data?.rows || data?.data || []);
 
-    cacheRegistrosJunior = listaCruda.filter((r) =>
-      String(r.id ?? r.ID ?? "").toUpperCase().startsWith("REP-")
-    );
+    // Guardar permanentemente la base de Junior
+    cacheRegistrosJunior = listaCruda.filter((r) => String(r.id ?? r.ID ?? "").toUpperCase().startsWith("REP-"));
+    localStorage.setItem(JUNIOR_KEY, JSON.stringify(cacheRegistrosJunior));
 
     const filasAngelDrive = listaCruda
       .map(mapearFilaDesdeDrive)
       .filter((r) => r && !r.id.startsWith("REP-"));
 
     const normalizadosDrive = normalizarRegistros(filasAngelDrive);
-
     const cantPreciosDrive = normalizadosDrive.filter((x) => obtenerMontoNumerico(x.precio) > 0).length;
     const sumaGsDrive = normalizadosDrive.reduce((acc, x) => acc + obtenerMontoNumerico(x.precio), 0);
 
@@ -2447,57 +2461,25 @@ function actualizarBadgeDrive(conectado, textoPersonalizado = "") {
 
 async function respaldarEnDriveSilencioso() {
   if (!driveUrl) return false;
-  if (syncEnCurso) {
-    marcarSubidaPendiente(true);
-    return false;
-  }
   syncEnCurso = true;
   actualizarBadgeDrive(true, "Guardando en Drive...");
 
   try {
-    // Solo consulta registros REP- si han pasado más de 45 segundos desde la última lectura
-    const ahora = Date.now();
-    if (ahora - ultimoSyncDriveTs > 45000) {
-      try {
-        const sep = driveUrl.includes("?") ? "&" : "?";
-        const res = await fetchConTimeout(`${driveUrl}${sep}t=${ahora}`, { cache: "no-store" }, 6000);
-        const data = await res.json();
-        const listaCruda = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.rows)
-          ? data.rows
-          : Array.isArray(data?.data)
-          ? data.data
-          : [];
-        cacheRegistrosJunior = listaCruda.filter((r) =>
-          String(r.id ?? r.ID ?? "").toUpperCase().startsWith("REP-")
-        );
-        ultimoSyncDriveTs = Date.now();
-      } catch (err) {
-        // Si el GET previo tarda o falla en red móvil, continúa con la subida sin bloquear
-      }
-    }
-
     const filasAngelParaDrive = servicios.map((s) => empaquetarRegistroParaDrive(s));
     const baseUnificada = [...filasAngelParaDrive, ...cacheRegistrosJunior];
 
-    await fetchConTimeout(
-      driveUrl,
-      {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "bulk", rows: baseUnificada })
-      },
-      12000
-    );
+    await fetch(driveUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "bulk", rows: baseUnificada })
+    });
 
-    ultimoSyncDriveTs = Date.now();
     actualizarBadgeDrive(true, "Google Drive Sincronizado ✓");
     return true;
   } catch (e) {
-    console.warn("Error respaldando en Drive:", e);
-    actualizarBadgeDrive(true, "Sin red · Toca para reintentar");
+    console.warn("Fallo de conexión al guardar:", e);
+    actualizarBadgeDrive(true, "Sin conexión · Reintentando...");
     return false;
   } finally {
     syncEnCurso = false;
@@ -2513,8 +2495,8 @@ async function subirBaseCompletaADrive() {
   marcarSubidaPendiente(false);
   const ok = await respaldarEnDriveSilencioso();
   if (ok) {
-    alert(`¡Sincronización completa! Se enviaron tus ${servicios.length} servicios y todos tus precios a Google Drive.`);
+    alert(`¡Sincronización completa! Se enviaron tus ${servicios.length} servicios a Google Drive.`);
   } else {
-    alert("No se pudo conectar en este momento. Se reintentará automáticamente en unos segundos.");
+    alert("No se pudo conectar. Se reintentará automáticamente cuando haya red.");
   }
 }
