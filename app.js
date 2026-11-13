@@ -4,6 +4,7 @@ const TECNICO_NOMBRE = "ANGEL VILLALBA";
 const AUTH_SESSION_KEY = "dn_servicios_autenticado_v9";
 const STORAGE_KEY = "dn_servicios_db_fija_v9";
 const FINANZAS_DB_KEY = "dn_boveda_finanzas_1212_v9";
+const ELIMINADOS_KEY = "dn_servicios_eliminados_manual_v10";
 const DRIVE_URL_KEY = "dn_servicios_drive_url";
 
 const DEFAULT_DRIVE_URL = "https://script.google.com/macros/s/AKfycbxezjx2ilDKOrdGQXrE3bHUO3cnMnMFDoDl3FJ7SX1xGTU-HmLXqWHrNB3h2IzcIrPF-g/exec";
@@ -11,7 +12,7 @@ const DEFAULT_DRIVE_URL = "https://script.google.com/macros/s/AKfycbxezjx2ilDKOr
 const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-// BASE INICIAL (SOLO SE USA LA PRIMERA VEZ SI NO HAY DATOS GUARDADOS EN EL NAVEGADOR)
+// BASE INICIAL (SE USA DE RESPALDO MIENTRAS DESCARGA LA BASE REAL DESDE GOOGLE DRIVE)
 const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
@@ -57,6 +58,8 @@ const DATOS_MAESTROS = [
   { id: "SER-042", fecha: "29/10/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Gamer / Escritorio", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Reensamblaje y corrección de cableado de PC mal armada", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-043", fecha: "29/10/2026", categoria: "Microelectrónica / Componente", marca: "Genérico", modelo: "Placa Madre Socket CPU", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Diagnóstico de placa que no encendía y enderezado de pines doblados en socket", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" }
 ];
+
+const MAPA_MAESTROS = new Map(DATOS_MAESTROS.map((item) => [item.id, item]));
 
 let servicios = [];
 let ultimosFiltrados = [];
@@ -107,9 +110,39 @@ function sincronizarListaConBaseFinanzas(lista) {
   return db;
 }
 
+function leerEliminadosManuales() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(ELIMINADOS_KEY) || "[]");
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function registrarEliminadoManual(id) {
+  if (!id) return;
+  const set = leerEliminadosManuales();
+  set.add(String(id).trim().toUpperCase());
+  localStorage.setItem(ELIMINADOS_KEY, JSON.stringify([...set]));
+}
+
+function quitarDeEliminadosManuales(id) {
+  if (!id) return;
+  const set = leerEliminadosManuales();
+  const idUp = String(id).trim().toUpperCase();
+  if (set.has(idUp)) {
+    set.delete(idUp);
+    localStorage.setItem(ELIMINADOS_KEY, JSON.stringify([...set]));
+  }
+}
+
 function empaquetarRegistroParaDrive(reg) {
+  const dbFin = leerBaseFinanzas();
+  const idUp = String(reg.id || "").trim().toUpperCase();
+  const precioLimpio = formatearGuaranies(reg.precio || dbFin[idUp] || "");
+
   const copia = {
-    id: reg.id,
+    id: idUp,
     fecha: reg.fecha,
     categoria: reg.categoria,
     marca: reg.marca,
@@ -117,19 +150,42 @@ function empaquetarRegistroParaDrive(reg) {
     intervencion: reg.intervencion,
     trabajo: reg.trabajo,
     repuestos: reg.repuestos || "Ninguno",
-    precio: reg.precio || "",
+    precio: precioLimpio,
     estado: reg.estado || "Entregado",
     notas: reg.notas || "",
     tecnico: TECNICO_NOMBRE
   };
 
-  const precioLimpio = formatearGuaranies(copia.precio);
+  // Guarda el precio también en notas entre paréntesis para que Google Sheets
+  // lo conserve siempre aunque la hoja no tenga una columna exclusiva de precio
   if (precioLimpio) {
     const notaSinPrecio = extraerPrecioDeTexto(copia.notas).textoSinPrecio;
     const baseNota = notaSinPrecio && notaSinPrecio !== "-" ? notaSinPrecio : "";
     copia.notas = baseNota ? `${baseNota} (${precioLimpio})` : `(${precioLimpio})`;
   }
   return copia;
+}
+
+function mapearFilaDesdeDrive(r) {
+  if (!r || typeof r !== "object") return null;
+  const idRaw = r.id ?? r.ID ?? r.Id ?? "";
+  const id = String(idRaw).trim().toUpperCase();
+  if (!id) return null;
+
+  return {
+    id,
+    fecha: r.fecha ?? r.Fecha ?? "",
+    categoria: r.categoria ?? r.Categoria ?? r["Categoría"] ?? "Notebook / Laptop",
+    marca: r.marca ?? r.Marca ?? "Genérico",
+    modelo: r.modelo ?? r.Modelo ?? "-",
+    intervencion: r.intervencion ?? r.Intervencion ?? r["Intervención"] ?? "",
+    trabajo: r.trabajo ?? r.Trabajo ?? "",
+    repuestos: r.repuestos ?? r.Repuestos ?? "Ninguno",
+    precio: r.precio ?? r.Precio ?? "",
+    estado: r.estado ?? r.Estado ?? "Entregado",
+    notas: r.notas ?? r.Notas ?? "",
+    tecnico: r.tecnico ?? r.Tecnico ?? r["Técnico"] ?? TECNICO_NOMBRE
+  };
 }
 
 // ============================================================================
@@ -149,10 +205,13 @@ function normalizarFecha(f) {
   if (str.includes("T")) {
     const soloFecha = str.split("T")[0];
     const partes = soloFecha.split("-");
-    if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    if (partes.length === 3) return `${partes[2].padStart(2, "0")}/${partes[1].padStart(2, "0")}/${partes[0]}`;
   }
-  const matchGuion = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (matchGuion) return `${matchGuion[3]}/${matchGuion[2]}/${matchGuion[1]}`;
+  const matchGuion = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (matchGuion) return `${matchGuion[3].padStart(2, "0")}/${matchGuion[2].padStart(2, "0")}/${matchGuion[1]}`;
+
+  const matchBarra = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (matchBarra) return `${matchBarra[1].padStart(2, "0")}/${matchBarra[2].padStart(2, "0")}/${matchBarra[3]}`;
   return str;
 }
 
@@ -229,7 +288,7 @@ function formatearGuaranies(valor) {
   if (!limpio) return "";
   const num = parseInt(limpio, 10);
   if (isNaN(num) || num <= 0) return "";
-  return num.toLocaleString("es-PY") + " Gs";
+  return String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " Gs";
 }
 
 function obtenerMontoNumerico(precioStr) {
@@ -242,7 +301,7 @@ function extraerPrecioDeTexto(linea) {
   let texto = String(linea || "").trim();
   let precioFormateado = "";
 
-  const regexParentesisGs = /\(\s*(\d{1,3}(?:[.,]\d{3})+|\d{4,9})\s*(?:gs\.?|guaran[ií]es)\s*\)/i;
+  const regexParentesisGs = /\(\s*(\d{1,3}(?:[.,\s]\d{3})+|\d{4,9})\s*(?:gs\.?|guaran[ií]es)\s*\)/i;
   const regexExplicito = /(?:\s+[-–:]?\s*|\b)(\d{1,3}(?:[.,]\d{3})+|\d{4,9})\s*(?:gs\.?|guaran[ií]es)\b\.?/i;
   const regexMil = /(?:\s+[-–:]?\s*|\b)(\d{1,4})\s*mil\s*(?:gs\.?)?\s*$/i;
   const regexMilesFinal = /\s+[-–:]?\s*(\d{1,3}(?:[.,]\d{3})+|\d{4,8})\s*$/;
@@ -443,13 +502,13 @@ document.addEventListener("DOMContentLoaded", () => {
 function normalizarRegistros(lista) {
   const dbFinanzas = leerBaseFinanzas();
 
-  return lista.map((item) => {
+  const resultado = lista.map((item) => {
     const idLimpio = String(item.id || "").trim().toUpperCase();
     let inter = item.intervencion || deducirIntervencion(item.trabajo || "");
     inter = inter.replace(/Mantenimiento Físico \/ Limpieza \/ Reflux/gi, "Mantenimiento Físico / Limpieza");
     inter = inter.replace(/\/ Reflux/gi, "").trim();
 
-    let notasRaw = (item.notas || "")
+    let notasRaw = String(item.notas || "")
       .replace(/\(Téc:\s*ANGEL VILLALBA\)/gi, "")
       .replace(/Téc:\s*ANGEL VILLALBA/gi, "")
       .trim();
@@ -508,6 +567,9 @@ function normalizarRegistros(lista) {
       _busqueda: indiceBusqueda
     };
   });
+
+  localStorage.setItem(FINANZAS_DB_KEY, JSON.stringify(dbFinanzas));
+  return resultado;
 }
 
 function configurarSeguridad() {
@@ -564,7 +626,7 @@ function configurarSeguridad() {
 }
 
 // ============================================================================
-// CARGA Y GUARDADO DIRECTO EN LOCALSTORAGE (SIN FILTROS QUE BORREN REGISTROS)
+// CARGA, GUARDADO LOCAL Y SINCRONIZACIÓN MULTI-DISPOSITIVO CON GOOGLE DRIVE
 // ============================================================================
 function ordenarPorFechaYNumero(lista) {
   return [...lista].sort((a, b) => {
@@ -578,13 +640,11 @@ function ordenarPorFechaYNumero(lista) {
 }
 
 function cargarBaseDeDatos() {
-  // Limpiar las listas negras antiguas que estaban borrando SER-044..SER-061 al refrescar
   localStorage.removeItem("dn_servicios_eliminados_v6");
   localStorage.removeItem("dn_servicios_eliminados_v8");
 
   let listaCargada = null;
 
-  // Buscar primero en la base fija v9 o en las anteriores
   const clavesBusqueda = [
     STORAGE_KEY,
     "dn_servicios_db_principal_v8",
@@ -610,7 +670,10 @@ function cargarBaseDeDatos() {
     listaCargada = [...DATOS_MAESTROS];
   }
 
-  servicios = normalizarRegistros(ordenarPorFechaYNumero(listaCargada));
+  const eliminados = leerEliminadosManuales();
+  const filtradaSinEliminados = listaCargada.filter((item) => !eliminados.has(String(item.id || "").trim().toUpperCase()));
+
+  servicios = normalizarRegistros(ordenarPorFechaYNumero(filtradaSinEliminados));
   guardarLocal();
 
   poblarSelectores();
@@ -618,7 +681,7 @@ function cargarBaseDeDatos() {
 
   if (driveUrl) {
     localStorage.setItem(DRIVE_URL_KEY, driveUrl);
-    actualizarBadgeDrive(true);
+    sincronizarDesdeDrive(true);
   }
 }
 
@@ -628,6 +691,113 @@ function guardarLocal() {
     ({ _dia, _mesKey, _mesLabel, _semanaKey, _semanaLabel, _timestamp, _monto, _claveGemelo, _busqueda, ...resto }) => resto
   );
   localStorage.setItem(STORAGE_KEY, JSON.stringify(copiaLimpia));
+}
+
+function fusionarServiciosLocalYDrive(listaLocal, listaDriveNorm) {
+  const eliminados = leerEliminadosManuales();
+  const mapaFinal = new Map();
+
+  listaLocal.forEach((loc) => {
+    const id = String(loc.id || "").trim().toUpperCase();
+    if (!id || eliminados.has(id)) return;
+    mapaFinal.set(id, { ...loc });
+  });
+
+  listaDriveNorm.forEach((rem) => {
+    const id = String(rem.id || "").trim().toUpperCase();
+    if (!id || eliminados.has(id)) return;
+
+    const existente = mapaFinal.get(id);
+    if (!existente) {
+      mapaFinal.set(id, { ...rem });
+    } else {
+      const baseMaestro = MAPA_MAESTROS.get(id);
+      const precioCombinado = rem.precio || existente.precio || "";
+
+      const elegirCampo = (campo) => {
+        const valRem = String(rem[campo] || "").trim();
+        const valLoc = String(existente[campo] || "").trim();
+        const valBase = baseMaestro ? String(baseMaestro[campo] || "").trim() : "";
+
+        // Si el registro local fue editado respecto a DATOS_MAESTROS y Drive aún tiene el valor viejo, conserva el editado
+        if (valBase && valLoc && valLoc !== valBase && valRem === valBase) {
+          return valLoc;
+        }
+        return valRem || valLoc;
+      };
+
+      mapaFinal.set(id, {
+        ...existente,
+        ...rem,
+        fecha: elegirCampo("fecha"),
+        categoria: elegirCampo("categoria"),
+        marca: elegirCampo("marca"),
+        modelo: elegirCampo("modelo"),
+        intervencion: elegirCampo("intervencion"),
+        trabajo: elegirCampo("trabajo"),
+        repuestos: elegirCampo("repuestos"),
+        notas: elegirCampo("notas"),
+        precio: precioCombinado
+      });
+    }
+  });
+
+  return normalizarRegistros(ordenarPorFechaYNumero([...mapaFinal.values()]));
+}
+
+async function sincronizarDesdeDrive(subirSiLocalMasCompleto = true) {
+  if (!driveUrl || syncEnCurso) return;
+  syncEnCurso = true;
+  actualizarBadgeDrive(true, "Sincronizando con Drive...");
+
+  try {
+    const sep = driveUrl.includes("?") ? "&" : "?";
+    const res = await fetch(`${driveUrl}${sep}t=${Date.now()}`, { cache: "no-store" });
+    const data = await res.json();
+
+    const listaCruda = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.rows)
+      ? data.rows
+      : Array.isArray(data?.data)
+      ? data.data
+      : [];
+
+    const filasAngelDrive = listaCruda
+      .map(mapearFilaDesdeDrive)
+      .filter((r) => r && !r.id.startsWith("REP-"));
+
+    const normalizadosDrive = normalizarRegistros(filasAngelDrive);
+
+    const cantPreciosDrive = normalizadosDrive.filter((x) => obtenerMontoNumerico(x.precio) > 0).length;
+    const sumaGsDrive = normalizadosDrive.reduce((acc, x) => acc + obtenerMontoNumerico(x.precio), 0);
+
+    servicios = fusionarServiciosLocalYDrive(servicios, normalizadosDrive);
+    guardarLocal();
+    poblarSelectores();
+    aplicarFiltros();
+    if (bovedaDesbloqueada) renderizarPanelIngresos();
+
+    const cantPreciosFusion = servicios.filter((x) => obtenerMontoNumerico(x.precio) > 0).length;
+    const sumaGsFusion = servicios.reduce((acc, x) => acc + obtenerMontoNumerico(x.precio), 0);
+
+    const localTieneMasDatos =
+      servicios.length > normalizadosDrive.length ||
+      cantPreciosFusion > cantPreciosDrive ||
+      sumaGsFusion !== sumaGsDrive;
+
+    syncEnCurso = false;
+
+    if (subirSiLocalMasCompleto && localTieneMasDatos && servicios.length > 0) {
+      await respaldarEnDriveSilencioso();
+    } else {
+      actualizarBadgeDrive(true, "Google Drive Sincronizado ✓");
+    }
+  } catch (e) {
+    console.warn("No se pudo descargar desde Drive:", e);
+    syncEnCurso = false;
+    actualizarBadgeDrive(true, "Modo Local (Reintentar Drive)");
+  }
 }
 
 function obtenerIntervencionesUnicas() {
@@ -1240,6 +1410,7 @@ window.abrirEditarServicio = function (id) {
 
 window.eliminarServicio = function (id) {
   if (!confirm(`¿Seguro que deseas eliminar el registro ${id}?`)) return;
+  registrarEliminadoManual(id);
   guardarPrecioEnBaseFinanzas(id, "");
   servicios = servicios.filter((s) => s.id !== id);
   guardarLocal();
@@ -1773,6 +1944,22 @@ function configurarEventos() {
     }
   });
 
+  // Al volver a la pestaña en cualquier dispositivo, sincroniza con Drive
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && sessionStorage.getItem(AUTH_SESSION_KEY) === "true" && driveUrl) {
+      sincronizarDesdeDrive(false);
+    }
+  });
+
+  const badgeDrive = document.getElementById("cloud-badge");
+  if (badgeDrive) {
+    badgeDrive.style.cursor = "pointer";
+    badgeDrive.title = "Clic para sincronizar ahora con Google Drive";
+    badgeDrive.addEventListener("click", () => {
+      if (driveUrl) sincronizarDesdeDrive(true);
+    });
+  }
+
   const btnLimpiar = document.getElementById("btn-limpiar");
   if (btnLimpiar) {
     btnLimpiar.addEventListener("click", () => {
@@ -1807,6 +1994,7 @@ function configurarEventos() {
         modalIngresos.classList.remove("hidden");
         modalIngresos.classList.add("flex");
         inicializarIconos();
+        if (driveUrl) sincronizarDesdeDrive(false);
       } else {
         inpPinIngresos.value = "";
         errorPinIngresos.classList.add("hidden");
@@ -1838,6 +2026,7 @@ function configurarEventos() {
         modalIngresos.classList.remove("hidden");
         modalIngresos.classList.add("flex");
         inicializarIconos();
+        if (driveUrl) sincronizarDesdeDrive(false);
       } else {
         errorPinIngresos.classList.remove("hidden");
         inpPinIngresos.value = "";
@@ -1935,6 +2124,7 @@ function configurarEventos() {
       const trabajoTxt = ext.precio ? ext.textoSinPrecio : trabajoRaw;
 
       const idRegistro = editId || generarNuevoID(1);
+      quitarDeEliminadosManuales(idRegistro);
       guardarPrecioEnBaseFinanzas(idRegistro, precioFinal);
 
       const datosBase = {
@@ -2062,6 +2252,7 @@ function configurarEventos() {
         delete copia.diaSemana;
         delete copia.alertasDuplicado;
         const idNuevo = generarNuevoID(idx + 1);
+        quitarDeEliminadosManuales(idNuevo);
         if (copia.precio) {
           guardarPrecioEnBaseFinanzas(idNuevo, copia.precio);
         }
@@ -2137,10 +2328,13 @@ function configurarEventos() {
     btnGuardarDrive.addEventListener("click", () => {
       driveUrl = document.getElementById("inp-drive-url").value.trim();
       localStorage.setItem(DRIVE_URL_KEY, driveUrl);
-      actualizarBadgeDrive(Boolean(driveUrl));
       modalDrive.classList.add("hidden");
       modalDrive.classList.remove("flex");
-      if (driveUrl) respaldarEnDriveSilencioso();
+      if (driveUrl) {
+        sincronizarDesdeDrive(true);
+      } else {
+        actualizarBadgeDrive(false);
+      }
     });
   }
   const btnSubirDrive = document.getElementById("btn-subir-drive");
@@ -2149,29 +2343,39 @@ function configurarEventos() {
   }
 }
 
-function actualizarBadgeDrive(conectado) {
+function actualizarBadgeDrive(conectado, textoPersonalizado = "") {
   const badge = document.getElementById("cloud-badge");
   if (!badge) return;
   if (conectado) {
-    badge.textContent = "Google Drive Conectado";
+    badge.textContent = textoPersonalizado || "Google Drive Conectado";
     badge.className = "text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600 font-medium";
   } else {
     badge.textContent = "Base Local Activa";
+    badge.className = "text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-600 font-medium";
   }
 }
 
 async function respaldarEnDriveSilencioso() {
   if (!driveUrl || syncEnCurso) return;
   syncEnCurso = true;
+  actualizarBadgeDrive(true, "Guardando en Drive...");
+
   try {
     let registrosJunior = [];
     try {
       const sep = driveUrl.includes("?") ? "&" : "?";
       const res = await fetch(`${driveUrl}${sep}t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
-      if (Array.isArray(data)) {
-        registrosJunior = data.filter((r) => String(r.id || "").toUpperCase().startsWith("REP-"));
-      }
+      const listaCruda = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.rows)
+        ? data.rows
+        : Array.isArray(data?.data)
+        ? data.data
+        : [];
+      registrosJunior = listaCruda.filter((r) =>
+        String(r.id ?? r.ID ?? "").toUpperCase().startsWith("REP-")
+      );
     } catch (err) {}
 
     const filasAngelParaDrive = servicios.map((s) => empaquetarRegistroParaDrive(s));
@@ -2180,11 +2384,14 @@ async function respaldarEnDriveSilencioso() {
     await fetch(driveUrl, {
       method: "POST",
       mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ action: "bulk", rows: baseUnificada })
     });
+
+    actualizarBadgeDrive(true, "Google Drive Sincronizado ✓");
   } catch (e) {
     console.warn("Error respaldando en Drive:", e);
+    actualizarBadgeDrive(true, "Error al sincronizar Drive");
   } finally {
     syncEnCurso = false;
   }
@@ -2197,6 +2404,5 @@ async function subirBaseCompletaADrive() {
   localStorage.setItem(DRIVE_URL_KEY, driveUrl);
 
   await respaldarEnDriveSilencioso();
-  actualizarBadgeDrive(true);
   alert(`¡Sincronización completa! Se enviaron tus ${servicios.length} servicios y todos tus precios a Google Drive.`);
 }
