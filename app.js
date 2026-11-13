@@ -5,11 +5,12 @@ const AUTH_SESSION_KEY = "dn_servicios_autenticado_v9";
 const STORAGE_KEY = "dn_servicios_db_fija_v9";
 const FINANZAS_DB_KEY = "dn_boveda_finanzas_1212_v9";
 const ELIMINADOS_KEY = "dn_servicios_eliminados_manual_v10";
+const PENDIENTE_SYNC_KEY = "dn_servicios_pendiente_sync_v11";
 const DRIVE_URL_KEY = "dn_servicios_drive_url";
 
 const DEFAULT_DRIVE_URL = "https://script.google.com/macros/s/AKfycbxezjx2ilDKOrdGQXrE3bHUO3cnMnMFDoDl3FJ7SX1xGTU-HmLXqWHrNB3h2IzcIrPF-g/exec";
 
-const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
+const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a.5.5 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
 // BASE INICIAL (SE USA DE RESPALDO MIENTRAS DESCARGA LA BASE REAL DESDE GOOGLE DRIVE)
@@ -67,10 +68,40 @@ let loteTemporal = [];
 let bovedaDesbloqueada = false;
 let timerBusqueda = null;
 let syncEnCurso = false;
-let subidaPendiente = false;
 let timerSubidaAutomatica = null;
+let cacheRegistrosJunior = [];
+let ultimoSyncDriveTs = 0;
 let ultimoAnchoMovil = window.innerWidth < 768;
 let driveUrl = localStorage.getItem(DRIVE_URL_KEY) || DEFAULT_DRIVE_URL;
+
+// ============================================================================
+// FETCH CON TIEMPO LÍMITE (EVITA QUE SE QUEDE COLGADO EN REDES MÓVILES)
+// ============================================================================
+async function fetchConTimeout(url, opciones = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const idTimer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const respuesta = await fetch(url, {
+      ...opciones,
+      signal: controller.signal
+    });
+    return respuesta;
+  } finally {
+    clearTimeout(idTimer);
+  }
+}
+
+function tieneSubidaPendiente() {
+  return localStorage.getItem(PENDIENTE_SYNC_KEY) === "true";
+}
+
+function marcarSubidaPendiente(valor) {
+  if (valor) {
+    localStorage.setItem(PENDIENTE_SYNC_KEY, "true");
+  } else {
+    localStorage.removeItem(PENDIENTE_SYNC_KEY);
+  }
+}
 
 // ============================================================================
 // BASE DE DATOS INDEPENDIENTE DE FINANZAS (1212) Y PERSISTENCIA FIJA
@@ -626,7 +657,7 @@ function configurarSeguridad() {
 }
 
 // ============================================================================
-// CARGA, GUARDADO LOCAL Y SINCRONIZACIÓN AUTOMÁTICA EN COLA CON GOOGLE DRIVE
+// CARGA, GUARDADO LOCAL Y SINCRONIZACIÓN AUTOMÁTICA ROBUSTA PARA MÓVILES Y PC
 // ============================================================================
 function ordenarPorFechaYNumero(lista) {
   return [...lista].sort((a, b) => {
@@ -681,7 +712,11 @@ function cargarBaseDeDatos() {
 
   if (driveUrl) {
     localStorage.setItem(DRIVE_URL_KEY, driveUrl);
-    sincronizarDesdeDrive(true);
+    if (tieneSubidaPendiente()) {
+      ejecutarColaSubidaDrive();
+    } else {
+      sincronizarDesdeDrive(true);
+    }
   }
 }
 
@@ -693,32 +728,36 @@ function guardarLocal() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(copiaLimpia));
 }
 
-// Cola automática garantizada: nunca descarta una subida aunque haya otra en curso
 function programarSubidaAutomaticaADrive() {
   if (!driveUrl) return;
-  subidaPendiente = true;
+  marcarSubidaPendiente(true);
   actualizarBadgeDrive(true, "Guardando cambios...");
 
   if (timerSubidaAutomatica) clearTimeout(timerSubidaAutomatica);
   timerSubidaAutomatica = setTimeout(() => {
     ejecutarColaSubidaDrive();
-  }, 250);
+  }, 200);
 }
 
 async function ejecutarColaSubidaDrive() {
-  if (!driveUrl || !subidaPendiente) return;
+  if (!driveUrl || !tieneSubidaPendiente()) return;
 
   if (syncEnCurso) {
-    // Reintenta en 500ms hasta que termine la operación anterior
-    setTimeout(ejecutarColaSubidaDrive, 500);
+    setTimeout(ejecutarColaSubidaDrive, 600);
     return;
   }
 
-  subidaPendiente = false;
-  await respaldarEnDriveSilencioso();
+  marcarSubidaPendiente(false);
+  const exito = await respaldarEnDriveSilencioso();
 
-  // Si mientras subía ocurrió otro cambio (nuevo/edición/borrado), vuelve a subir automáticamente
-  if (subidaPendiente) {
+  if (!exito) {
+    marcarSubidaPendiente(true);
+    actualizarBadgeDrive(true, "Sin red · Reintentando...");
+    setTimeout(ejecutarColaSubidaDrive, 4000);
+    return;
+  }
+
+  if (tieneSubidaPendiente()) {
     setTimeout(ejecutarColaSubidaDrive, 300);
   }
 }
@@ -775,17 +814,18 @@ function fusionarServiciosLocalYDrive(listaLocal, listaDriveNorm) {
 }
 
 async function sincronizarDesdeDrive(subirSiLocalMasCompleto = true) {
-  if (!driveUrl || syncEnCurso || subidaPendiente) return;
+  if (!driveUrl || syncEnCurso || tieneSubidaPendiente()) return;
   syncEnCurso = true;
   actualizarBadgeDrive(true, "Sincronizando con Drive...");
 
   try {
     const sep = driveUrl.includes("?") ? "&" : "?";
-    const res = await fetch(`${driveUrl}${sep}t=${Date.now()}`, { cache: "no-store" });
+    const res = await fetchConTimeout(`${driveUrl}${sep}t=${Date.now()}`, { cache: "no-store" }, 10000);
     const data = await res.json();
 
-    // Si el usuario modificó/borró algo mientras descargábamos, priorizamos sus cambios locales
-    if (subidaPendiente) {
+    ultimoSyncDriveTs = Date.now();
+
+    if (tieneSubidaPendiente()) {
       syncEnCurso = false;
       ejecutarColaSubidaDrive();
       return;
@@ -798,6 +838,10 @@ async function sincronizarDesdeDrive(subirSiLocalMasCompleto = true) {
       : Array.isArray(data?.data)
       ? data.data
       : [];
+
+    cacheRegistrosJunior = listaCruda.filter((r) =>
+      String(r.id ?? r.ID ?? "").toUpperCase().startsWith("REP-")
+    );
 
     const filasAngelDrive = listaCruda
       .map(mapearFilaDesdeDrive)
@@ -832,7 +876,7 @@ async function sincronizarDesdeDrive(subirSiLocalMasCompleto = true) {
   } catch (e) {
     console.warn("No se pudo descargar desde Drive:", e);
     syncEnCurso = false;
-    actualizarBadgeDrive(true, "Modo Local (Reintentar Drive)");
+    actualizarBadgeDrive(true, "Modo Local (Toca para sincronizar)");
   }
 }
 
@@ -1980,9 +2024,15 @@ function configurarEventos() {
     }
   });
 
+  window.addEventListener("online", () => {
+    if (driveUrl && tieneSubidaPendiente()) {
+      ejecutarColaSubidaDrive();
+    }
+  });
+
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && sessionStorage.getItem(AUTH_SESSION_KEY) === "true" && driveUrl) {
-      if (subidaPendiente) {
+      if (tieneSubidaPendiente()) {
         ejecutarColaSubidaDrive();
       } else {
         sincronizarDesdeDrive(false);
@@ -1996,7 +2046,7 @@ function configurarEventos() {
     badgeDrive.title = "Clic para sincronizar ahora con Google Drive";
     badgeDrive.addEventListener("click", () => {
       if (driveUrl) {
-        if (subidaPendiente) {
+        if (tieneSubidaPendiente()) {
           ejecutarColaSubidaDrive();
         } else {
           sincronizarDesdeDrive(true);
@@ -2039,7 +2089,7 @@ function configurarEventos() {
         modalIngresos.classList.remove("hidden");
         modalIngresos.classList.add("flex");
         inicializarIconos();
-        if (driveUrl && !subidaPendiente) sincronizarDesdeDrive(false);
+        if (driveUrl && !tieneSubidaPendiente()) sincronizarDesdeDrive(false);
       } else {
         inpPinIngresos.value = "";
         errorPinIngresos.classList.add("hidden");
@@ -2071,7 +2121,7 @@ function configurarEventos() {
         modalIngresos.classList.remove("hidden");
         modalIngresos.classList.add("flex");
         inicializarIconos();
-        if (driveUrl && !subidaPendiente) sincronizarDesdeDrive(false);
+        if (driveUrl && !tieneSubidaPendiente()) sincronizarDesdeDrive(false);
       } else {
         errorPinIngresos.classList.remove("hidden");
         inpPinIngresos.value = "";
@@ -2315,7 +2365,6 @@ function configurarEventos() {
       cerrarModalLote();
 
       programarSubidaAutomaticaADrive();
-      alert(`¡Se guardaron ${nuevosNormalizados.length} servicios y se están subiendo a Google Drive!`);
     });
   }
 
@@ -2397,46 +2446,59 @@ function actualizarBadgeDrive(conectado, textoPersonalizado = "") {
 }
 
 async function respaldarEnDriveSilencioso() {
-  if (!driveUrl) return;
+  if (!driveUrl) return false;
   if (syncEnCurso) {
-    subidaPendiente = true;
-    return;
+    marcarSubidaPendiente(true);
+    return false;
   }
   syncEnCurso = true;
   actualizarBadgeDrive(true, "Guardando en Drive...");
 
   try {
-    let registrosJunior = [];
-    try {
-      const sep = driveUrl.includes("?") ? "&" : "?";
-      const res = await fetch(`${driveUrl}${sep}t=${Date.now()}`, { cache: "no-store" });
-      const data = await res.json();
-      const listaCruda = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.rows)
-        ? data.rows
-        : Array.isArray(data?.data)
-        ? data.data
-        : [];
-      registrosJunior = listaCruda.filter((r) =>
-        String(r.id ?? r.ID ?? "").toUpperCase().startsWith("REP-")
-      );
-    } catch (err) {}
+    // Solo consulta registros REP- si han pasado más de 45 segundos desde la última lectura
+    const ahora = Date.now();
+    if (ahora - ultimoSyncDriveTs > 45000) {
+      try {
+        const sep = driveUrl.includes("?") ? "&" : "?";
+        const res = await fetchConTimeout(`${driveUrl}${sep}t=${ahora}`, { cache: "no-store" }, 6000);
+        const data = await res.json();
+        const listaCruda = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.rows)
+          ? data.rows
+          : Array.isArray(data?.data)
+          ? data.data
+          : [];
+        cacheRegistrosJunior = listaCruda.filter((r) =>
+          String(r.id ?? r.ID ?? "").toUpperCase().startsWith("REP-")
+        );
+        ultimoSyncDriveTs = Date.now();
+      } catch (err) {
+        // Si el GET previo tarda o falla en red móvil, continúa con la subida sin bloquear
+      }
+    }
 
     const filasAngelParaDrive = servicios.map((s) => empaquetarRegistroParaDrive(s));
-    const baseUnificada = [...filasAngelParaDrive, ...registrosJunior];
+    const baseUnificada = [...filasAngelParaDrive, ...cacheRegistrosJunior];
 
-    await fetch(driveUrl, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "bulk", rows: baseUnificada })
-    });
+    await fetchConTimeout(
+      driveUrl,
+      {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "bulk", rows: baseUnificada })
+      },
+      12000
+    );
 
+    ultimoSyncDriveTs = Date.now();
     actualizarBadgeDrive(true, "Google Drive Sincronizado ✓");
+    return true;
   } catch (e) {
     console.warn("Error respaldando en Drive:", e);
-    actualizarBadgeDrive(true, "Error al sincronizar Drive");
+    actualizarBadgeDrive(true, "Sin red · Toca para reintentar");
+    return false;
   } finally {
     syncEnCurso = false;
   }
@@ -2448,7 +2510,11 @@ async function subirBaseCompletaADrive() {
   driveUrl = urlInput;
   localStorage.setItem(DRIVE_URL_KEY, driveUrl);
 
-  subidaPendiente = false;
-  await respaldarEnDriveSilencioso();
-  alert(`¡Sincronización completa! Se enviaron tus ${servicios.length} servicios y todos tus precios a Google Drive.`);
+  marcarSubidaPendiente(false);
+  const ok = await respaldarEnDriveSilencioso();
+  if (ok) {
+    alert(`¡Sincronización completa! Se enviaron tus ${servicios.length} servicios y todos tus precios a Google Drive.`);
+  } else {
+    alert("No se pudo conectar en este momento. Se reintentará automáticamente en unos segundos.");
+  }
 }
