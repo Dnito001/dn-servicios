@@ -1,6 +1,6 @@
 // ============================================================================
 // DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN SISTEMA: 000)
-// VERSIÓN SUPABASE (SQL) - BÓVEDA INGRESOS (1212) - TIEMPO REAL SIN PÉRDIDAS
+// CONECTADO A BASE DE DATOS REAL POSTGRESQL (SUPABASE) + BÓVEDA INGRESOS (1212)
 // ============================================================================
 
 const PIN_ACCESO = "000";
@@ -22,7 +22,7 @@ const HEADERS_SUPA = {
 const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-// BASE MAESTRA DE RESPALDO (SE SUBIRÁ A SUPABASE AL HACER CLIC EN MIGRAR)
+// REGISTROS HISTÓRICOS DE RESPALDO PARA MIGRACIÓN INICIAL A SUPABASE
 const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
@@ -192,7 +192,6 @@ function empaquetarParaSupabase(reg) {
 }
 
 async function cargarBaseDeDatos() {
-  // 1. Cargar lo que tengamos en local rápido para que la pantalla no quede en blanco
   const cache = localStorage.getItem(CACHE_LOCAL_KEY);
   if (cache) {
     try {
@@ -202,7 +201,6 @@ async function cargarBaseDeDatos() {
     } catch(e) {}
   }
 
-  // 2. Traer los datos reales y actualizados de Supabase
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?select=*`, {
       headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
@@ -211,10 +209,8 @@ async function cargarBaseDeDatos() {
     if (res.ok) {
       const data = await res.json();
       if (data && data.length > 0) {
-        // En el panel de Ángel, solo mostramos los suyos por ahora
         const soloAngel = data.filter(r => String(r.id).toUpperCase().startsWith("SER-"));
         
-        // Fusionamos con los maestros por si Supabase está vacío (recién creado)
         const mapa = new Map();
         DATOS_MAESTROS.forEach(m => mapa.set(m.id, m));
         soloAngel.forEach(d => mapa.set(d.id, d));
@@ -779,48 +775,149 @@ function renderizarPanelIngresos() {
 }
 
 // ============================================================================
-// MODALES Y CRUD PRINCIPAL (CON SUPABASE)
+// FUNCIONES DE CARGA RÁPIDA (TEXTO)
 // ============================================================================
-window.abrirEditarServicio = function (id) {
-  const item = servicios.find((s) => s.id === id);
-  if (!item) return;
-  document.getElementById("titulo-modal-registro").textContent = `Editar Servicio ${item.id}`;
-  document.getElementById("inp-edit-id").value = item.id;
-  document.getElementById("inp-fecha").value = convertirFechaAYYYYMMDD(item.fecha);
-  document.getElementById("inp-categoria").value = item.categoria;
-  document.getElementById("inp-marca").value = item.marca;
-  document.getElementById("inp-modelo").value = item.modelo;
-  document.getElementById("inp-trabajo").value = item.trabajo;
-  document.getElementById("inp-repuestos").value = item.repuestos === "Ninguno" ? "" : item.repuestos;
-  document.getElementById("inp-precio").value = item.precio || "";
-  document.getElementById("inp-notas").value = item.notas || "";
-
-  const partes = String(item.intervencion || "").split("+").map((x) => x.trim());
-  document.querySelectorAll('input[name="intervencion-check"]').forEach((chk) => {
-    chk.checked = partes.includes(chk.value);
-  });
-  document.getElementById("error-intervencion").classList.add("hidden");
-  document.getElementById("modal-registro").classList.replace("hidden", "flex");
-  setTimeout(() => document.getElementById("inp-precio")?.focus(), 80);
-};
-
-window.eliminarServicio = async function (id) {
-  if (!confirm(`¿Seguro que deseas eliminar permanentemente el registro ${id}? (Se borrará de la nube de Supabase)`)) return;
-  servicios = servicios.filter((s) => s.id !== id);
-  localStorage.setItem(CACHE_LOCAL_KEY, JSON.stringify(servicios));
-  poblarSelectores();
-  aplicarFiltros();
-  if (bovedaDesbloqueada) renderizarPanelIngresos();
-  await eliminarServicioSupabase(id);
-};
-
-function generarNuevoID(offset = 1) {
-  const maxNum = servicios.reduce((acc, s) => {
-    const n = parseInt(String(s.id).replace(/\D/g, "")) || 0;
-    return n > acc ? n : acc;
-  }, 0);
-  return `SER-${String(maxNum + offset).padStart(3, "0")}`;
+function detectarEquipoEnTexto(texto) {
+  const tLow = texto.toLowerCase();
+  let marca = "";
+  if (tLow.includes("epson") || /\bl3\d{2,3}\b/i.test(texto)) marca = "Epson";
+  else if (tLow.includes("hp")) marca = "HP";
+  else if (tLow.includes("brother")) marca = "Brother";
+  else if (tLow.includes("canon")) marca = "Canon";
+  else if (tLow.includes("acer")) marca = "Acer";
+  else if (tLow.includes("asus")) marca = "Asus";
+  else if (tLow.includes("dell")) marca = "Dell";
+  else if (tLow.includes("lenovo")) marca = "Lenovo";
+  else if (tLow.includes("samsung") || /\b(galaxy|a\d{2}[s]?|j\d|s2\d|m\d{2})\b/i.test(texto)) marca = "Samsung";
+  else if (tLow.includes("xiaomi") || tLow.includes("redmi") || tLow.includes("poco")) marca = "Xiaomi";
+  else if (tLow.includes("iphone") || tLow.includes("apple")) marca = "Apple";
+  else if (tLow.includes("motorola") || tLow.includes("moto ")) marca = "Motorola";
+  else if (tLow.includes("honor")) marca = "Honor";
+  else if (tLow.includes("jbl")) marca = "JBL";
+  
+  let categoria = "Notebook / Laptop";
+  if (tLow.includes("impresora") || tLow.includes("epson") || tLow.includes("cabezal") || tLow.includes("cartucho")) categoria = "Impresora";
+  else if (tLow.includes("pc ") || tLow.includes("escritorio")) categoria = "PC Escritorio / Servidor";
+  else if (tLow.includes("teléfono") || tLow.includes("celular") || tLow.includes("samsung") || tLow.includes("xiaomi") || tLow.includes("iphone")) categoria = "Smartphone";
+  else if (tLow.includes("tv") || tLow.includes("monitor")) categoria = "Smart TV / Monitor";
+  else if (tLow.includes("jbl") || tLow.includes("parlante")) categoria = "Audio / Consola / Portátil";
+  else if (tLow.includes("disco") || tLow.includes("hdd")) categoria = "Almacenamiento";
+  
+  let modelo = "";
+  const matchEpson = texto.match(/\b(L\d{3,4})\b/i);
+  const matchIphone = texto.match(/\b(iPhone\s*\d+\s*(?:Pro\s*Max|Pro|Plus|Mini|XR|XS)?)\b/i);
+  const matchGalaxy = texto.match(/\b(Galaxy\s+[A-Z0-9]+|A\d{2}[a-z]?|S\d{2})\b/i);
+  
+  if (matchEpson) modelo = `EcoTank ${matchEpson[1].toUpperCase()}`;
+  else if (matchIphone) modelo = matchIphone[1];
+  else if (matchGalaxy) modelo = matchGalaxy[1].toLowerCase().startsWith("galaxy") ? matchGalaxy[1] : `Galaxy ${matchGalaxy[1].toUpperCase()}`;
+  
+  return { tieneMarcaOModelo: Boolean(marca || modelo), categoria, marca: marca || "Genérico", modelo };
 }
+
+function procesarTextoLote(textoCompleto, fechaLunes) {
+  const lineas = textoCompleto.split(/\r?\n/);
+  const anioBase = fechaLunes.split("-")[0];
+  let fCurso = normalizarFecha(fechaLunes);
+  let ctxEquipo = null;
+  const resultados = [];
+
+  const mapaDias = [
+    { regex: /^lunes\b/i, offset: 0 }, { regex: /^martes\b/i, offset: 1 }, { regex: /^mi[eé]rcoles\b/i, offset: 2 },
+    { regex: /^jueves\b/i, offset: 3 }, { regex: /^viernes\b/i, offset: 4 }, { regex: /^s[aá]bado\b/i, offset: 5 }, { regex: /^domingo\b/i, offset: 6 }
+  ];
+
+  for (let l of lineas) {
+    l = l.trim();
+    if (!l) continue;
+
+    let cambioDia = false;
+    for (const d of mapaDias) {
+      if (d.regex.test(l)) {
+        const [y, m, day] = fechaLunes.split("-").map(Number);
+        const f = new Date(y, m - 1, day + d.offset);
+        fCurso = `${String(f.getDate()).padStart(2, "0")}/${String(f.getMonth() + 1).padStart(2, "0")}/${f.getFullYear()}`;
+        l = l.replace(d.regex, "").replace(/^[\s:–-]+/, "").trim();
+        ctxEquipo = null;
+        cambioDia = true;
+        break;
+      }
+    }
+    if (cambioDia && !l) continue;
+
+    const { textoSinPrecio, precio } = extraerPrecioDeTexto(l.replace(/^[-*•\d.)\s]+/, ""));
+    const eqInfo = detectarEquipoEnTexto(textoSinPrecio);
+    
+    const palabras = ["cambio", "reparación", "mantenimiento", "desbloqueo", "pasar", "limpieza", "instalación", "actualizar"];
+    const tieneTrabajo = palabras.some(p => textoSinPrecio.toLowerCase().includes(p));
+
+    if (eqInfo.tieneMarcaOModelo && !tieneTrabajo && !precio) {
+      ctxEquipo = { categoria: eqInfo.categoria, marca: eqInfo.marca, modelo: eqInfo.modelo || eqInfo.marca, notas: "" };
+      continue;
+    }
+
+    let tFinal = textoSinPrecio;
+    let marcaF = eqInfo.marca; let modF = eqInfo.modelo; let catF = eqInfo.categoria; let notF = "";
+    
+    if (!eqInfo.tieneMarcaOModelo && ctxEquipo) {
+      catF = ctxEquipo.categoria; marcaF = ctxEquipo.marca; modF = ctxEquipo.modelo; notF = ctxEquipo.notas;
+    } else {
+      if (!modF) modF = marcaF;
+    }
+
+    resultados.push({
+      fecha: fCurso,
+      diaSemana: obtenerDiaSemana(fCurso),
+      categoria: catF,
+      marca: marcaF,
+      modelo: modF,
+      intervencion: deducirIntervencion(tFinal),
+      trabajo: tFinal.charAt(0).toUpperCase() + tFinal.slice(1),
+      repuestos: deducirRepuestos(tFinal),
+      precio: precio || "",
+      estado: "Entregado",
+      notas: notF,
+      tecnico: TECNICO_NOMBRE
+    });
+    
+    if (eqInfo.tieneMarcaOModelo) ctxEquipo = { categoria: catF, marca: marcaF, modelo: modF, notas: notF };
+  }
+  
+  return resultados;
+}
+
+function renderizarPreviewLote() {
+  const tbody = document.getElementById("tbody-preview-lote");
+  const btn = document.getElementById("btn-guardar-lote");
+  if (!tbody || !btn) return;
+  
+  if (loteTemporal.length === 0) {
+    document.getElementById("contenedor-preview-lote").classList.add("hidden");
+    btn.disabled = true;
+    return;
+  }
+
+  tbody.innerHTML = loteTemporal.map((item, idx) => `
+    <tr class="hover:bg-slate-50">
+      <td class="py-2 px-3 whitespace-nowrap"><div class="font-bold text-teal-700">#${idx + 1} · ${item.fecha}</div><div class="text-[10px] font-extrabold uppercase text-indigo-600">${item.diaSemana}</div></td>
+      <td class="py-2 px-3 font-medium">${item.categoria}</td>
+      <td class="py-2 px-3"><strong>${item.marca}</strong> · ${item.modelo}</td>
+      <td class="py-2 px-3 text-indigo-700 font-semibold">${item.intervencion}</td>
+      <td class="py-2 px-3 text-slate-800">${item.trabajo}</td>
+      <td class="py-2 px-3 text-right font-extrabold text-emerald-700 whitespace-nowrap">${item.precio || "-"}</td>
+      <td class="py-2 px-3"><button type="button" onclick="quitarFilaDeLote(${idx})" class="text-[11px] px-2 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 font-bold">Quitar</button></td>
+    </tr>
+  `).join("");
+  
+  document.getElementById("resumen-lote").textContent = `${loteTemporal.length} servicios detectados listos para guardar.`;
+  document.getElementById("contenedor-preview-lote").classList.remove("hidden");
+  btn.disabled = false;
+}
+
+window.quitarFilaDeLote = function (idx) {
+  loteTemporal.splice(idx, 1);
+  renderizarPreviewLote();
+};
 
 function configurarEventos() {
   document.getElementById("filtro-texto")?.addEventListener("input", () => {
@@ -932,14 +1029,6 @@ function configurarEventos() {
       tecnico: TECNICO_NOMBRE
     };
 
-    if (!editId) {
-      const dups = verificarDuplicadoIndividual(datosBase);
-      if (dups.length > 0) {
-        const str = dups.map((d) => `• ${d.id} (${d.fecha}): ${d.marca} ${d.modelo} - ${d.trabajo}`).join("\n");
-        if (!confirm(`⚠️ ALERTA DE SERVICIO REPETIDO EN LA MISMA FECHA (${datosBase.fecha}):\n\n${str}\n\n¿Confirmas que es otro equipo distinto (Aceptar) o cancelar?`)) return;
-      }
-    }
-
     const [regNorm] = normalizarRegistros([datosBase]);
     
     if (editId) {
@@ -954,7 +1043,6 @@ function configurarEventos() {
     poblarSelectores(); aplicarFiltros(); if (bovedaDesbloqueada) renderizarPanelIngresos();
     e.target.reset(); cerrarModal();
 
-    // Guardado REAL directo en Supabase
     await guardarServicioSupabase(regNorm);
   });
 
@@ -967,8 +1055,6 @@ function configurarEventos() {
     document.getElementById("inp-lunes-lote").value = obtenerLunesActualYYYYMMDD();
     document.getElementById("inp-texto-lote").value = "";
     document.getElementById("contenedor-preview-lote").classList.add("hidden");
-    document.getElementById("contenedor-resumen-dias").classList.add("hidden");
-    const cd = document.getElementById("alerta-duplicados-lote"); if(cd) cd.className = "hidden";
     document.getElementById("resumen-lote").textContent = "";
     document.getElementById("btn-guardar-lote").disabled = true;
     loteTemporal = [];
@@ -985,11 +1071,6 @@ function configurarEventos() {
 
   document.getElementById("btn-guardar-lote")?.addEventListener("click", async () => {
     if (!loteTemporal.length) return;
-    const reps = loteTemporal.filter((it) => it.alertasDuplicado && it.alertasDuplicado.length > 0);
-    if (reps.length > 0) {
-      if (!confirm(`⚠️ Estás por guardar ${reps.length} repetido(s) en la misma fecha:\n\n${reps.map(r => `• ${r.fecha}: ${r.marca} ${r.modelo}`).join("\n")}\n\n¿Confirmas?`)) return;
-    }
-
     const nuevos = loteTemporal.map((item, idx) => {
       const c = { ...item }; delete c.diaSemana; delete c.alertasDuplicado;
       return { id: generarNuevoID(idx + 1), ...c };
@@ -1002,14 +1083,13 @@ function configurarEventos() {
     poblarSelectores(); aplicarFiltros(); if (bovedaDesbloqueada) renderizarPanelIngresos();
     cerrarModalLote();
 
-    // Enviar lote completo a Supabase
     document.body.style.cursor = "wait";
     await guardarLoteSupabase(nuevosNorm);
     document.body.style.cursor = "default";
     alert(`¡Se guardaron y respaldaron en Supabase ${nuevosNorm.length} servicios!`);
   });
 
-  // BOTÓN DE MIGRAR A SUPABASE (DESDE EL MODAL DEL DRIVE VIEJO)
+  // BOTÓN DE MIGRAR A SUPABASE (DESDE EL MODAL)
   document.getElementById("btn-config-drive")?.addEventListener("click", () => document.getElementById("modal-drive").classList.replace("hidden", "flex"));
   document.getElementById("btn-cerrar-drive")?.addEventListener("click", () => document.getElementById("modal-drive").classList.replace("flex", "hidden"));
   document.getElementById("btn-subir-drive")?.addEventListener("click", migrarBaseASupabase);
