@@ -1,6 +1,7 @@
 // ============================================================================
 // DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN SISTEMA: 000)
 // CONECTADO A BASE DE DATOS REAL POSTGRESQL (SUPABASE) + BÓVEDA INGRESOS (1212)
+// CARGA RÁPIDA RESTAURADA Y 100% OPERATIVA
 // ============================================================================
 
 const PIN_ACCESO = "000";
@@ -22,7 +23,6 @@ const HEADERS_SUPA = {
 const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-// REGISTROS HISTÓRICOS DE RESPALDO PARA MIGRACIÓN INICIAL A SUPABASE
 const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
@@ -84,15 +84,7 @@ const DATOS_MAESTROS = [
   { id: "SER-058", fecha: "07/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de batería interna de laptop HP", repuestos: "Batería HP", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-059", fecha: "09/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "HP 250 G5", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de Teclado", repuestos: "Teclado en Ingles para HP 250 G5", precio: "", estado: "Entregado", notas: "Laptop del Local" },
   { id: "SER-060", fecha: "10/11/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP 664", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho de tinta negra", repuestos: "Tinta color Negro", precio: "15.000 Gs", estado: "Entregado", notas: "" },
-  { id: "SER-061", fecha: "10/11/2026", categoria: "Impresiones / Corte Plotter / Trabajos Prácticos", marca: "Genérico", modelo: "Documento Word", intervencion: "Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Digitalización y escaneo de documentos a formato PDF / imagen", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "-" },
-  { id: "SER-078", fecha: "09/11/2026", categoria: "Smartphone", marca: "Honor", modelo: "Honor a Honor", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Pasar todos los datos de teléfono honor a honor", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Teléfono honor a honor" },
-  { id: "SER-079", fecha: "09/11/2026", categoria: "PC Escritorio / Servidor", marca: "Dell", modelo: "PC Dell", intervencion: "Reemplazo de Repuesto / Hardware + Software / Sistema Operativo / Backup", trabajo: "Cambiar disco e instalar sistema con office a PC Dell", repuestos: "Disco SSD", precio: "", estado: "Entregado", notas: "-" },
-  { id: "SER-080", fecha: "10/11/2026", categoria: "Audio / Consola / Portátil", marca: "JBL", modelo: "Parlante JBL", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Actualizar JBL", repuestos: "Ninguno", precio: "20.000 Gs", estado: "Entregado", notas: "-" },
-  { id: "SER-081", fecha: "11/11/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Duro HDD", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Sacar datos de disco HDD", repuestos: "Ninguno", precio: "10.000 Gs", estado: "Entregado", notas: "Disco HDD" },
-  { id: "SER-082", fecha: "12/11/2026", categoria: "Notebook / Laptop", marca: "Acer", modelo: "Laptop Acer", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Laptop acer no encendía de Adalberto", repuestos: "Ninguno", precio: "30.000 Gs", estado: "Entregado", notas: "Adalberto" },
-  { id: "SER-083", fecha: "13/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L380", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware + Reset de Software / Contadores", trabajo: "Impresora Epson l380 limpieza completo y reset de almohadilla con cambio", repuestos: "Almohadillas", precio: "70.000 Gs", estado: "Entregado", notas: "Almohadilla con cambio" },
-  { id: "SER-084", fecha: "13/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3110", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware", trabajo: "Epson l3110 cambio de cabezal y Flex con limpieza de Adalberto", repuestos: "Cabezal + Cable Flex", precio: "100.000 Gs", estado: "Entregado", notas: "Adalberto" },
-  { id: "SER-085", fecha: "14/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware", trabajo: "Laptop HP cambio de batería con mantenimiento completo", repuestos: "Batería", precio: "80.000 Gs", estado: "Entregado", notas: "-" }
+  { id: "SER-061", fecha: "10/11/2026", categoria: "Impresiones / Corte Plotter / Trabajos Prácticos", marca: "Genérico", modelo: "Documento Word", intervencion: "Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Digitalización y escaneo de documentos a formato PDF / imagen", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "-" }
 ];
 
 let servicios = [];
@@ -1029,6 +1021,14 @@ function configurarEventos() {
       tecnico: TECNICO_NOMBRE
     };
 
+    if (!editId) {
+      const dups = verificarDuplicadoIndividual(datosBase);
+      if (dups.length > 0) {
+        const str = dups.map((d) => `• ${d.id} (${d.fecha}): ${d.marca} ${d.modelo} - ${d.trabajo}`).join("\n");
+        if (!confirm(`⚠️ ALERTA DE SERVICIO REPETIDO EN LA MISMA FECHA (${datosBase.fecha}):\n\n${str}\n\n¿Confirmas que es otro equipo distinto (Aceptar) o cancelar?`)) return;
+      }
+    }
+
     const [regNorm] = normalizarRegistros([datosBase]);
     
     if (editId) {
@@ -1043,10 +1043,11 @@ function configurarEventos() {
     poblarSelectores(); aplicarFiltros(); if (bovedaDesbloqueada) renderizarPanelIngresos();
     e.target.reset(); cerrarModal();
 
+    // Guardado REAL directo en Supabase
     await guardarServicioSupabase(regNorm);
   });
 
-  // CARGA RÁPIDA (TEXTO)
+  // CARGA RÁPIDA (TEXTO) - EVENTOS RESTAURADOS
   const cerrarModalLote = () => document.getElementById("modal-lote")?.classList.replace("flex", "hidden");
   document.getElementById("btn-cerrar-lote")?.addEventListener("click", cerrarModalLote);
   document.getElementById("btn-cancelar-lote")?.addEventListener("click", cerrarModalLote);
@@ -1083,6 +1084,7 @@ function configurarEventos() {
     poblarSelectores(); aplicarFiltros(); if (bovedaDesbloqueada) renderizarPanelIngresos();
     cerrarModalLote();
 
+    // Enviar lote completo a Supabase
     document.body.style.cursor = "wait";
     await guardarLoteSupabase(nuevosNorm);
     document.body.style.cursor = "default";
