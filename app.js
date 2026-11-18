@@ -1,6 +1,6 @@
 // ============================================================================
 // DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN SISTEMA: 000)
-// BASE SUPABASE (SQL) + BÓVEDA INGRESOS (1212) + CARGA RÁPIDA RESTAURADA 100%
+// BASE SUPABASE (SQL) + BÓVEDA INGRESOS (1212) + BOTONES DE ACCIÓN REPARADOS
 // ============================================================================
 
 const PIN_ACCESO = "000";
@@ -19,10 +19,10 @@ const HEADERS_SUPA = {
   "Prefer": "return=representation,resolution=merge-duplicates"
 };
 
-const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
-const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
+// Íconos con la propiedad 'pointer-events: none' para que el clic pase directo al botón
+const SVG_EDIT = `<svg style="pointer-events: none;" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
+const SVG_TRASH = `<svg style="pointer-events: none;" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-// BASE MAESTRA DE RESPALDO (SE SUBIRÁ A SUPABASE AL HACER CLIC EN MIGRAR)
 const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
@@ -396,6 +396,24 @@ function limpiarTextoComparacion(str) {
   return String(str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
 
+function verificarDuplicadoIndividual(nuevoItem, ignorarId = null) {
+  const fNueva = normalizarFecha(nuevoItem.fecha);
+  const marcaNueva = limpiarTextoComparacion(nuevoItem.marca);
+  const modeloNuevo = limpiarTextoComparacion(nuevoItem.modelo);
+  const trabajoNuevo = limpiarTextoComparacion(nuevoItem.trabajo);
+  const intNueva = limpiarTextoComparacion(nuevoItem.intervencion);
+
+  return servicios.filter((s) => {
+    if (ignorarId && s.id === ignorarId) return false;
+    if (normalizarFecha(s.fecha) !== fNueva) return false;
+    const mMarca = limpiarTextoComparacion(s.marca) === marcaNueva;
+    const mModelo = limpiarTextoComparacion(s.modelo) === modeloNuevo;
+    const mTrabajo = limpiarTextoComparacion(s.trabajo) === trabajoNuevo;
+    const mInt = limpiarTextoComparacion(s.intervencion) === intNueva;
+    return (mMarca && mModelo && (mTrabajo || mInt)) || (mModelo && mTrabajo);
+  });
+}
+
 function ordenarPorFechaYNumero(lista) {
   return [...lista].sort((a, b) => {
     const tA = a._timestamp || convertirFechaATimestamp(a.fecha);
@@ -616,8 +634,8 @@ function renderizarVista(lista) {
               <span class="text-[11px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">${item._dia}</span>
             </div>
             <div class="flex items-center gap-1.5">
-              <button onclick="abrirEditarServicio('${item.id}')" class="text-xs font-extrabold px-2.5 py-1 rounded-md ${item.precio ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-slate-100 text-slate-600 border border-slate-300"}">${item.precio || "+ Gs"}</button>
-              <button onclick="eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1">${SVG_TRASH}</button>
+              <button onclick="window.abrirEditarServicio('${item.id}')" class="text-xs font-extrabold px-2.5 py-1 rounded-md ${item.precio ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-slate-100 text-slate-600 border border-slate-300"}">${item.precio || "+ Gs"}</button>
+              <button onclick="window.eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1">${SVG_TRASH}</button>
             </div>
           </div>
           <p class="font-bold text-slate-900 text-sm">${item.marca} <span class="font-normal text-slate-500">· ${item.modelo}</span></p>
@@ -637,9 +655,9 @@ function renderizarVista(lista) {
           <td class="py-3 px-4 text-xs font-medium text-slate-700 max-w-xs">${item.intervencion}</td>
           <td class="py-3 px-4 text-slate-800 max-w-xs">${item.trabajo}</td>
           <td class="py-3 px-4 text-xs text-slate-600">${item.repuestos}</td>
-          <td class="py-3 px-4 text-right"><button onclick="abrirEditarServicio('${item.id}')" class="cursor-pointer transition ${item.precio ? "inline-block text-xs font-extrabold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200" : "inline-block text-[11px] font-bold px-2.5 py-1 rounded-md bg-slate-100 text-slate-500 border border-slate-200"}">${item.precio || "+ Cargar Gs"}</button></td>
+          <td class="py-3 px-4 text-right"><button onclick="window.abrirEditarServicio('${item.id}')" class="cursor-pointer transition ${item.precio ? "inline-block text-xs font-extrabold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200" : "inline-block text-[11px] font-bold px-2.5 py-1 rounded-md bg-slate-100 text-slate-500 border border-slate-200"}">${item.precio || "+ Cargar Gs"}</button></td>
           <td class="py-3 px-4 text-xs font-semibold text-teal-800">${item.notas || "-"}</td>
-          <td class="py-3 px-4 text-center whitespace-nowrap"><button onclick="abrirEditarServicio('${item.id}')" class="text-slate-400 hover:text-teal-600 p-1">${SVG_EDIT}</button><button onclick="eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1">${SVG_TRASH}</button></td>
+          <td class="py-3 px-4 text-center whitespace-nowrap"><button onclick="window.abrirEditarServicio('${item.id}')" class="text-slate-400 hover:text-teal-600 p-1 cursor-pointer">${SVG_EDIT}</button><button onclick="window.eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer">${SVG_TRASH}</button></td>
         </tr>`;
     }).join("");
   }
@@ -749,7 +767,7 @@ function renderizarPanelIngresos() {
 }
 
 // ============================================================================
-// FUNCIONES COMPLETAS DE CARGA RÁPIDA (TEXTO)
+// FUNCIONES DE CARGA RÁPIDA (TEXTO)
 // ============================================================================
 function detectarEquipoEnTexto(texto) {
   const tLow = texto.toLowerCase();
@@ -787,52 +805,6 @@ function detectarEquipoEnTexto(texto) {
   else if (matchGalaxy) modelo = matchGalaxy[1].toLowerCase().startsWith("galaxy") ? matchGalaxy[1] : `Galaxy ${matchGalaxy[1].toUpperCase()}`;
   
   return { tieneMarcaOModelo: Boolean(marca || modelo), categoria, marca: marca || "Genérico", modelo };
-}
-
-function evaluarDuplicadosEnLote(listaLote) {
-  return listaLote.map((item, idx) => {
-    const fItem = item.fecha;
-    const marcaItem = limpiarTextoComparacion(item.marca);
-    const modeloItem = limpiarTextoComparacion(item.modelo);
-    const trabajoItem = limpiarTextoComparacion(item.trabajo);
-    const intItem = limpiarTextoComparacion(item.intervencion);
-
-    const alertas = [];
-
-    const enBD = servicios.filter((s) => {
-      if (s.fecha !== fItem) return false;
-      const mMarca = limpiarTextoComparacion(s.marca) === marcaItem;
-      const mModelo = limpiarTextoComparacion(s.modelo) === modeloItem;
-      const mTrabajo = limpiarTextoComparacion(s.trabajo) === trabajoItem;
-      return mMarca && mModelo && mTrabajo;
-    });
-
-    if (enBD.length > 0) {
-      alertas.push({ nivel: "rojo", mensaje: `Ya guardado (${enBD.map(x => x.id).join(", ")})` });
-    }
-
-    const repetidosEnNota = [];
-    listaLote.forEach((otro, otroIdx) => {
-      if (otroIdx === idx) return;
-      if (otro.fecha !== fItem) return;
-      const mMarca = limpiarTextoComparacion(otro.marca) === marcaItem;
-      const mModelo = limpiarTextoComparacion(otro.modelo) === modeloItem;
-      const mTrabajo = limpiarTextoComparacion(otro.trabajo) === trabajoItem;
-      const mInt = limpiarTextoComparacion(otro.intervencion) === intItem;
-
-      if (mMarca && mModelo && mTrabajo) {
-        repetidosEnNota.push(`Fila #${otroIdx + 1} (Equipo y servicio exacto)`);
-      } else if (mMarca && mModelo && mInt) {
-        repetidosEnNota.push(`Fila #${otroIdx + 1} (Mismo equipo e intervención)`);
-      }
-    });
-
-    if (repetidosEnNota.length > 0) {
-      alertas.push({ nivel: "ambar", mensaje: `Cuidado: ${repetidosEnNota.join(", ")}` });
-    }
-
-    return { ...item, alertasDuplicado: alertas };
-  });
 }
 
 function procesarTextoLote(textoCompleto, fechaLunes) {
@@ -912,6 +884,43 @@ function procesarTextoLote(textoCompleto, fechaLunes) {
   return evaluarDuplicadosEnLote(resultados);
 }
 
+function evaluarDuplicadosEnLote(listaLote) {
+  return listaLote.map((item, idx) => {
+    const fItem = item.fecha;
+    const marcaItem = limpiarTextoComparacion(item.marca);
+    const modeloItem = limpiarTextoComparacion(item.modelo);
+    const trabajoItem = limpiarTextoComparacion(item.trabajo);
+    const intItem = limpiarTextoComparacion(item.intervencion);
+
+    const alertas = [];
+    const enBD = servicios.filter((s) => {
+      if (s.fecha !== fItem) return false;
+      const mMarca = limpiarTextoComparacion(s.marca) === marcaItem;
+      const mModelo = limpiarTextoComparacion(s.modelo) === modeloItem;
+      const mTrabajo = limpiarTextoComparacion(s.trabajo) === trabajoItem;
+      return mMarca && mModelo && mTrabajo;
+    });
+
+    if (enBD.length > 0) alertas.push({ nivel: "rojo", mensaje: `Ya guardado (${enBD.map(x => x.id).join(", ")})` });
+
+    const repetidosEnNota = [];
+    listaLote.forEach((otro, otroIdx) => {
+      if (otroIdx === idx) return;
+      if (otro.fecha !== fItem) return;
+      const mMarca = limpiarTextoComparacion(otro.marca) === marcaItem;
+      const mModelo = limpiarTextoComparacion(otro.modelo) === modeloItem;
+      const mTrabajo = limpiarTextoComparacion(otro.trabajo) === trabajoItem;
+      const mInt = limpiarTextoComparacion(otro.intervencion) === intItem;
+
+      if (mMarca && mModelo && mTrabajo) repetidosEnNota.push(`Fila #${otroIdx + 1} (Equipo y servicio exacto)`);
+      else if (mMarca && mModelo && mInt) repetidosEnNota.push(`Fila #${otroIdx + 1} (Mismo equipo e intervención)`);
+    });
+
+    if (repetidosEnNota.length > 0) alertas.push({ nivel: "ambar", mensaje: `Cuidado: ${repetidosEnNota.join(", ")}` });
+    return { ...item, alertasDuplicado: alertas };
+  });
+}
+
 function renderizarPreviewLote() {
   const tbody = document.getElementById("tbody-preview-lote");
   const gridDias = document.getElementById("grid-resumen-dias");
@@ -925,7 +934,6 @@ function renderizarPreviewLote() {
     return;
   }
 
-  // AGRUPACIÓN POR DÍAS (COMO EN VERSIÓN 8)
   const grupos = {};
   let totalGsLote = 0;
   let itemsConAlerta = [];
@@ -971,7 +979,7 @@ function renderizarPreviewLote() {
       <td class="py-2 px-3 text-indigo-700 font-semibold">${item.intervencion}</td>
       <td class="py-2 px-3 text-slate-800">${item.trabajo}</td>
       <td class="py-2 px-3 text-right font-extrabold text-emerald-700 whitespace-nowrap">${item.precio || "-"}</td>
-      <td class="py-2 px-3"><button type="button" onclick="quitarFilaDeLote(${idx})" class="text-[11px] px-2 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 font-bold">Quitar</button></td>
+      <td class="py-2 px-3"><button type="button" onclick="window.quitarFilaDeLote(${idx})" class="text-[11px] px-2 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 font-bold">Quitar</button></td>
     </tr>
   `).join("");
   
@@ -980,9 +988,10 @@ function renderizarPreviewLote() {
   btn.disabled = false;
 }
 
+// FUNCIONES GLOBALES ASIGNADAS AL OBJETO WINDOW PARA QUE EL HTML LAS PUEDA LLAMAR SIEMPRE
 window.quitarFilaDeLote = function (idx) {
   loteTemporal.splice(idx, 1);
-  loteTemporal = evaluarDuplicadosEnLote(loteTemporal); // Reevalúa los repetidos al quitar uno
+  loteTemporal = evaluarDuplicadosEnLote(loteTemporal);
   renderizarPreviewLote();
 };
 
@@ -1022,6 +1031,9 @@ window.abrirModalNuevoRegistro = function() {
   mod.classList.remove("hidden");
 };
 
+// ============================================================================
+// CONFIGURACIÓN DE EVENTOS PRINCIPALES
+// ============================================================================
 function configurarEventos() {
   document.getElementById("filtro-texto")?.addEventListener("input", () => {
     if (timerBusqueda) clearTimeout(timerBusqueda);
@@ -1142,7 +1154,6 @@ function configurarEventos() {
     poblarSelectores(); aplicarFiltros(); if (bovedaDesbloqueada) renderizarPanelIngresos();
     e.target.reset(); cerrarModal();
 
-    // Guardado REAL directo en Supabase
     await guardarServicioSupabase(regNorm);
   });
 
@@ -1154,7 +1165,7 @@ function configurarEventos() {
   document.getElementById("btn-analizar-lote")?.addEventListener("click", () => {
     const texto = document.getElementById("inp-texto-lote").value.trim();
     if (!texto) return alert("Pega primero la lista de servicios.");
-    loteTemporal = procesarTextoLote(texto, document.getElementById("inp-lunes-lote").value);
+    loteTemporal = procesarTextoLote(texto, document.getElementById("inp-lunes-lote").value || obtenerLunesActualYYYYMMDD());
     if (loteTemporal.length === 0) return alert("No se detectaron líneas válidas.");
     renderizarPreviewLote();
   });
@@ -1178,14 +1189,13 @@ function configurarEventos() {
     poblarSelectores(); aplicarFiltros(); if (bovedaDesbloqueada) renderizarPanelIngresos();
     cerrarModalLote();
 
-    // Enviar lote completo a Supabase
     document.body.style.cursor = "wait";
     await guardarLoteSupabase(nuevosNorm);
     document.body.style.cursor = "default";
     alert(`¡Se guardaron y respaldaron en Supabase ${nuevosNorm.length} servicios!`);
   });
 
-  // BOTÓN DE MIGRAR A SUPABASE (DESDE EL MODAL DEL DRIVE VIEJO)
+  // BOTÓN DE MIGRAR A SUPABASE (DESDE EL MODAL)
   document.getElementById("btn-config-drive")?.addEventListener("click", () => document.getElementById("modal-drive").classList.replace("hidden", "flex"));
   document.getElementById("btn-cerrar-drive")?.addEventListener("click", () => document.getElementById("modal-drive").classList.replace("flex", "hidden"));
   document.getElementById("btn-subir-drive")?.addEventListener("click", migrarBaseASupabase);
