@@ -1,7 +1,6 @@
 // ============================================================================
 // DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN SISTEMA: 000)
-// CONECTADO A BASE DE DATOS REAL POSTGRESQL (SUPABASE) + BÓVEDA INGRESOS (1212)
-// CARGA RÁPIDA RESTAURADA Y 100% OPERATIVA
+// BASE SUPABASE (SQL) + BÓVEDA INGRESOS (1212) + CARGA RÁPIDA RESTAURADA 100%
 // ============================================================================
 
 const PIN_ACCESO = "000";
@@ -23,6 +22,7 @@ const HEADERS_SUPA = {
 const SVG_EDIT = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
+// BASE MAESTRA DE RESPALDO (SE SUBIRÁ A SUPABASE AL HACER CLIC EN MIGRAR)
 const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
@@ -244,7 +244,7 @@ function actualizarBadgeSupabase(conectado) {
 }
 
 // ============================================================================
-// LÓGICA GENERAL DE LA INTERFAZ
+// LÓGICA GENERAL DE LA INTERFAZ Y FECHAS
 // ============================================================================
 
 function limpiarParaBusqueda(valor) {
@@ -394,24 +394,6 @@ function deducirRepuestos(trabajo) {
 
 function limpiarTextoComparacion(str) {
   return String(str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-}
-
-function verificarDuplicadoIndividual(nuevoItem, ignorarId = null) {
-  const fNueva = normalizarFecha(nuevoItem.fecha);
-  const marcaNueva = limpiarTextoComparacion(nuevoItem.marca);
-  const modeloNuevo = limpiarTextoComparacion(nuevoItem.modelo);
-  const trabajoNuevo = limpiarTextoComparacion(nuevoItem.trabajo);
-  const intNueva = limpiarTextoComparacion(nuevoItem.intervencion);
-
-  return servicios.filter((s) => {
-    if (ignorarId && s.id === ignorarId) return false;
-    if (normalizarFecha(s.fecha) !== fNueva) return false;
-    const mMarca = limpiarTextoComparacion(s.marca) === marcaNueva;
-    const mModelo = limpiarTextoComparacion(s.modelo) === modeloNuevo;
-    const mTrabajo = limpiarTextoComparacion(s.trabajo) === trabajoNuevo;
-    const mInt = limpiarTextoComparacion(s.intervencion) === intNueva;
-    return (mMarca && mModelo && (mTrabajo || mInt)) || (mModelo && mTrabajo);
-  });
 }
 
 function ordenarPorFechaYNumero(lista) {
@@ -767,7 +749,7 @@ function renderizarPanelIngresos() {
 }
 
 // ============================================================================
-// FUNCIONES DE CARGA RÁPIDA (TEXTO)
+// FUNCIONES COMPLETAS DE CARGA RÁPIDA (TEXTO)
 // ============================================================================
 function detectarEquipoEnTexto(texto) {
   const tLow = texto.toLowerCase();
@@ -807,6 +789,52 @@ function detectarEquipoEnTexto(texto) {
   return { tieneMarcaOModelo: Boolean(marca || modelo), categoria, marca: marca || "Genérico", modelo };
 }
 
+function evaluarDuplicadosEnLote(listaLote) {
+  return listaLote.map((item, idx) => {
+    const fItem = item.fecha;
+    const marcaItem = limpiarTextoComparacion(item.marca);
+    const modeloItem = limpiarTextoComparacion(item.modelo);
+    const trabajoItem = limpiarTextoComparacion(item.trabajo);
+    const intItem = limpiarTextoComparacion(item.intervencion);
+
+    const alertas = [];
+
+    const enBD = servicios.filter((s) => {
+      if (s.fecha !== fItem) return false;
+      const mMarca = limpiarTextoComparacion(s.marca) === marcaItem;
+      const mModelo = limpiarTextoComparacion(s.modelo) === modeloItem;
+      const mTrabajo = limpiarTextoComparacion(s.trabajo) === trabajoItem;
+      return mMarca && mModelo && mTrabajo;
+    });
+
+    if (enBD.length > 0) {
+      alertas.push({ nivel: "rojo", mensaje: `Ya guardado (${enBD.map(x => x.id).join(", ")})` });
+    }
+
+    const repetidosEnNota = [];
+    listaLote.forEach((otro, otroIdx) => {
+      if (otroIdx === idx) return;
+      if (otro.fecha !== fItem) return;
+      const mMarca = limpiarTextoComparacion(otro.marca) === marcaItem;
+      const mModelo = limpiarTextoComparacion(otro.modelo) === modeloItem;
+      const mTrabajo = limpiarTextoComparacion(otro.trabajo) === trabajoItem;
+      const mInt = limpiarTextoComparacion(otro.intervencion) === intItem;
+
+      if (mMarca && mModelo && mTrabajo) {
+        repetidosEnNota.push(`Fila #${otroIdx + 1} (Equipo y servicio exacto)`);
+      } else if (mMarca && mModelo && mInt) {
+        repetidosEnNota.push(`Fila #${otroIdx + 1} (Mismo equipo e intervención)`);
+      }
+    });
+
+    if (repetidosEnNota.length > 0) {
+      alertas.push({ nivel: "ambar", mensaje: `Cuidado: ${repetidosEnNota.join(", ")}` });
+    }
+
+    return { ...item, alertasDuplicado: alertas };
+  });
+}
+
 function procesarTextoLote(textoCompleto, fechaLunes) {
   const lineas = textoCompleto.split(/\r?\n/);
   const anioBase = fechaLunes.split("-")[0];
@@ -836,6 +864,12 @@ function procesarTextoLote(textoCompleto, fechaLunes) {
       }
     }
     if (cambioDia && !l) continue;
+
+    const matchFecha = l.match(/^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s*[-:–]\s*(.+)$/);
+    if (matchFecha) {
+      fCurso = normalizarFecha(matchFecha[1]);
+      l = matchFecha[2].trim();
+    }
 
     const { textoSinPrecio, precio } = extraerPrecioDeTexto(l.replace(/^[-*•\d.)\s]+/, ""));
     const eqInfo = detectarEquipoEnTexto(textoSinPrecio);
@@ -875,22 +909,62 @@ function procesarTextoLote(textoCompleto, fechaLunes) {
     if (eqInfo.tieneMarcaOModelo) ctxEquipo = { categoria: catF, marca: marcaF, modelo: modF, notas: notF };
   }
   
-  return resultados;
+  return evaluarDuplicadosEnLote(resultados);
 }
 
 function renderizarPreviewLote() {
   const tbody = document.getElementById("tbody-preview-lote");
+  const gridDias = document.getElementById("grid-resumen-dias");
   const btn = document.getElementById("btn-guardar-lote");
   if (!tbody || !btn) return;
   
   if (loteTemporal.length === 0) {
-    document.getElementById("contenedor-preview-lote").classList.add("hidden");
+    document.getElementById("contenedor-preview-lote")?.classList.add("hidden");
+    document.getElementById("contenedor-resumen-dias")?.classList.add("hidden");
     btn.disabled = true;
     return;
   }
 
+  // AGRUPACIÓN POR DÍAS (COMO EN VERSIÓN 8)
+  const grupos = {};
+  let totalGsLote = 0;
+  let itemsConAlerta = [];
+
+  loteTemporal.forEach((item, idx) => {
+    const m = obtenerMontoNumerico(item.precio);
+    totalGsLote += m;
+    if (!grupos[item.fecha]) grupos[item.fecha] = { dia: item.diaSemana, fecha: item.fecha, subtotal: 0, items: [] };
+    grupos[item.fecha].subtotal += m;
+    grupos[item.fecha].items.push({ ...item, idx });
+
+    if (item.alertasDuplicado && item.alertasDuplicado.length > 0) itemsConAlerta.push({ ...item, idx: idx + 1 });
+  });
+
+  const cajaAlerta = document.getElementById("alerta-duplicados-lote");
+  if (cajaAlerta) {
+    if (itemsConAlerta.length > 0) {
+      cajaAlerta.className = "bg-amber-50 border-2 border-amber-400 rounded-xl p-4 space-y-2 mb-4";
+      cajaAlerta.innerHTML = `<h4 class="text-xs font-black text-amber-900 uppercase">⚠️ Hay ${itemsConAlerta.length} servicio(s) repetidos</h4><ul class="text-xs space-y-1">${itemsConAlerta.map(a => `<li class="p-1 bg-white border border-amber-300 rounded">Fila #${a.idx} (${a.fecha}): ${a.marca} - ${a.alertasDuplicado.map(x=>x.mensaje).join(" | ")}</li>`).join("")}</ul>`;
+    } else {
+      cajaAlerta.className = "hidden";
+    }
+  }
+
+  if (gridDias) {
+    gridDias.innerHTML = Object.values(grupos).map(g => `
+      <div class="bg-indigo-50/60 border border-indigo-200 rounded-xl p-3 space-y-2">
+        <div class="flex justify-between border-b border-indigo-200 pb-1">
+          <div class="flex gap-2 items-center"><span class="px-2 py-0.5 bg-indigo-600 text-white rounded text-xs font-bold uppercase">${g.dia}</span><span class="font-bold text-xs">${g.fecha}</span></div>
+          <span class="text-xs font-bold text-emerald-700">${formatearGuaranies(g.subtotal) || ""}</span>
+        </div>
+        <ul class="space-y-1">${g.items.map(it => `<li class="flex justify-between text-[11px] p-1.5 bg-white rounded border ${it.alertasDuplicado?.length ? 'border-amber-400 bg-amber-50' : 'border-slate-200'}"><span><strong>#${it.idx+1}</strong> ${it.marca} - ${it.trabajo}</span><span class="font-bold text-emerald-700">${it.precio}</span></li>`).join("")}</ul>
+      </div>
+    `).join("");
+    document.getElementById("contenedor-resumen-dias")?.classList.remove("hidden");
+  }
+
   tbody.innerHTML = loteTemporal.map((item, idx) => `
-    <tr class="hover:bg-slate-50">
+    <tr class="${item.alertasDuplicado?.length ? 'bg-amber-50' : 'hover:bg-slate-50'}">
       <td class="py-2 px-3 whitespace-nowrap"><div class="font-bold text-teal-700">#${idx + 1} · ${item.fecha}</div><div class="text-[10px] font-extrabold uppercase text-indigo-600">${item.diaSemana}</div></td>
       <td class="py-2 px-3 font-medium">${item.categoria}</td>
       <td class="py-2 px-3"><strong>${item.marca}</strong> · ${item.modelo}</td>
@@ -901,14 +975,51 @@ function renderizarPreviewLote() {
     </tr>
   `).join("");
   
-  document.getElementById("resumen-lote").textContent = `${loteTemporal.length} servicios detectados listos para guardar.`;
-  document.getElementById("contenedor-preview-lote").classList.remove("hidden");
+  document.getElementById("resumen-lote").textContent = `${loteTemporal.length} servicios listos (${formatearGuaranies(totalGsLote)}).`;
+  document.getElementById("contenedor-preview-lote")?.classList.remove("hidden");
   btn.disabled = false;
 }
 
 window.quitarFilaDeLote = function (idx) {
   loteTemporal.splice(idx, 1);
+  loteTemporal = evaluarDuplicadosEnLote(loteTemporal); // Reevalúa los repetidos al quitar uno
   renderizarPreviewLote();
+};
+
+window.abrirModalCargaLote = function() {
+  try {
+    const hoy = new Date();
+    const dia = hoy.getDay();
+    const diff = hoy.getDate() - dia + (dia === 0 ? -6 : 1);
+    const lunes = new Date(hoy.setDate(diff));
+    
+    document.getElementById("inp-lunes-lote").value = lunes.toISOString().split("T")[0];
+    document.getElementById("inp-texto-lote").value = "";
+    document.getElementById("contenedor-preview-lote")?.classList.add("hidden");
+    document.getElementById("contenedor-resumen-dias")?.classList.add("hidden");
+    const alerta = document.getElementById("alerta-duplicados-lote");
+    if(alerta) alerta.className = "hidden";
+    document.getElementById("resumen-lote").textContent = "";
+    document.getElementById("btn-guardar-lote").disabled = true;
+    loteTemporal = [];
+    
+    const mod = document.getElementById("modal-lote");
+    mod.classList.replace("hidden", "flex");
+    mod.classList.remove("hidden");
+  } catch(e) {
+    alert("Error al abrir Carga Rápida.");
+  }
+};
+
+window.abrirModalNuevoRegistro = function() {
+  document.getElementById("form-servicio")?.reset();
+  document.getElementById("inp-edit-id").value = "";
+  document.getElementById("titulo-modal-registro").textContent = "Registrar Nuevo Servicio Técnico";
+  document.getElementById("inp-fecha").valueAsDate = new Date();
+  document.getElementById("error-intervencion").classList.add("hidden");
+  const mod = document.getElementById("modal-registro");
+  mod.classList.replace("hidden", "flex");
+  mod.classList.remove("hidden");
 };
 
 function configurarEventos() {
@@ -978,18 +1089,6 @@ function configurarEventos() {
   document.getElementById("fin-select-mes")?.addEventListener("change", renderizarPanelIngresos);
 
   // NUEVO/EDITAR
-  const abrirModalNuevo = () => {
-    document.getElementById("form-servicio")?.reset();
-    document.getElementById("inp-edit-id").value = "";
-    document.getElementById("titulo-modal-registro").textContent = "Registrar Nuevo Servicio Técnico";
-    document.getElementById("inp-fecha").valueAsDate = new Date();
-    document.getElementById("error-intervencion").classList.add("hidden");
-    document.getElementById("modal-registro").classList.replace("hidden", "flex");
-  };
-
-  document.getElementById("btn-nuevo")?.addEventListener("click", abrirModalNuevo);
-  document.getElementById("btn-nuevo-flotante")?.addEventListener("click", abrirModalNuevo);
-  
   const cerrarModal = () => document.getElementById("modal-registro")?.classList.replace("flex", "hidden");
   document.getElementById("btn-cerrar-modal")?.addEventListener("click", cerrarModal);
   document.getElementById("btn-cancelar")?.addEventListener("click", cerrarModal);
@@ -1047,31 +1146,26 @@ function configurarEventos() {
     await guardarServicioSupabase(regNorm);
   });
 
-  // CARGA RÁPIDA (TEXTO) - EVENTOS RESTAURADOS
+  // CARGA RÁPIDA (TEXTO)
   const cerrarModalLote = () => document.getElementById("modal-lote")?.classList.replace("flex", "hidden");
   document.getElementById("btn-cerrar-lote")?.addEventListener("click", cerrarModalLote);
   document.getElementById("btn-cancelar-lote")?.addEventListener("click", cerrarModalLote);
 
-  document.getElementById("btn-carga-lote")?.addEventListener("click", () => {
-    document.getElementById("inp-lunes-lote").value = obtenerLunesActualYYYYMMDD();
-    document.getElementById("inp-texto-lote").value = "";
-    document.getElementById("contenedor-preview-lote").classList.add("hidden");
-    document.getElementById("resumen-lote").textContent = "";
-    document.getElementById("btn-guardar-lote").disabled = true;
-    loteTemporal = [];
-    document.getElementById("modal-lote").classList.replace("hidden", "flex");
-  });
-
   document.getElementById("btn-analizar-lote")?.addEventListener("click", () => {
     const texto = document.getElementById("inp-texto-lote").value.trim();
     if (!texto) return alert("Pega primero la lista de servicios.");
-    loteTemporal = procesarTextoLote(texto, document.getElementById("inp-lunes-lote").value || obtenerLunesActualYYYYMMDD());
+    loteTemporal = procesarTextoLote(texto, document.getElementById("inp-lunes-lote").value);
     if (loteTemporal.length === 0) return alert("No se detectaron líneas válidas.");
     renderizarPreviewLote();
   });
 
   document.getElementById("btn-guardar-lote")?.addEventListener("click", async () => {
     if (!loteTemporal.length) return;
+    const reps = loteTemporal.filter((it) => it.alertasDuplicado && it.alertasDuplicado.length > 0);
+    if (reps.length > 0) {
+      if (!confirm(`⚠️ Estás por guardar ${reps.length} repetido(s) en la misma fecha:\n\n${reps.map(r => `• ${r.fecha}: ${r.marca} ${r.modelo}`).join("\n")}\n\n¿Confirmas?`)) return;
+    }
+
     const nuevos = loteTemporal.map((item, idx) => {
       const c = { ...item }; delete c.diaSemana; delete c.alertasDuplicado;
       return { id: generarNuevoID(idx + 1), ...c };
@@ -1091,7 +1185,7 @@ function configurarEventos() {
     alert(`¡Se guardaron y respaldaron en Supabase ${nuevosNorm.length} servicios!`);
   });
 
-  // BOTÓN DE MIGRAR A SUPABASE (DESDE EL MODAL)
+  // BOTÓN DE MIGRAR A SUPABASE (DESDE EL MODAL DEL DRIVE VIEJO)
   document.getElementById("btn-config-drive")?.addEventListener("click", () => document.getElementById("modal-drive").classList.replace("hidden", "flex"));
   document.getElementById("btn-cerrar-drive")?.addEventListener("click", () => document.getElementById("modal-drive").classList.replace("flex", "hidden"));
   document.getElementById("btn-subir-drive")?.addEventListener("click", migrarBaseASupabase);
