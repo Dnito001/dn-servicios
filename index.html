@@ -244,7 +244,7 @@
     </div>
   </div>
 
-  <!-- MODAL: CARGA RÁPIDA (CON LA INTERFAZ ORIGINAL HERMOSA RESTAURADA) -->
+  <!-- MODAL: CARGA RÁPIDA (CON EXTRACCIÓN DE CLIENTE Y PRECIO) -->
   <div id="modal-lote" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-5xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[95vh] flex flex-col relative">
       
@@ -253,7 +253,7 @@
           <i data-lucide="sparkles" class="w-6 h-6 text-indigo-400"></i>
           <div>
             <h3 class="font-bold text-lg leading-tight">Carga Rápida Semanal con Extracción de Precios (Gs)</h3>
-            <p class="text-[11px] text-slate-300">Detecta el día, el equipo y extrae automáticamente el monto en guaraníes al final de cada servicio</p>
+            <p class="text-[11px] text-slate-300">Detecta el día, el equipo, el cliente (si lo incluyes) y extrae automáticamente el monto en guaraníes</p>
           </div>
         </div>
         <button type="button" onclick="window.cerrarModalLote()" class="text-slate-400 hover:text-white transition"><i data-lucide="x" class="w-6 h-6"></i></button>
@@ -267,8 +267,8 @@
             <input type="date" id="inp-lunes-lote" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm" />
           </div>
           <div class="text-xs text-slate-600 flex flex-col justify-center">
-            <p class="font-bold text-slate-800 mb-1">Extracción automática de Guaraníes:</p>
-            <p>Puedes poner el modelo arriba y sus trabajos con monto abajo (ej. <strong>placa de carga 5.000gs, flex de carga 50.000gs</strong>) o todo en una misma línea.</p>
+            <p class="font-bold text-slate-800 mb-1">Extracción automática de Cliente y Guaraníes:</p>
+            <p>Escribe el servicio, el cliente opcional y el monto (ej. <strong>reparar placa de monitor Dell de Derlis 30.000gs</strong> o sin cliente: <strong>cambio de teclado HP 80.000gs</strong>).</p>
           </div>
         </div>
 
@@ -309,6 +309,7 @@
                   <th class="py-2.5 px-4 font-bold">Trabajo Realizado</th>
                   <th class="py-2.5 px-4 font-bold text-center">Precio (Gs)</th>
                   <th class="py-2.5 px-4 font-bold text-center">Cliente</th>
+                  <th class="py-2.5 px-4 font-bold text-center">Acción</th>
                 </tr>
               </thead>
               <tbody id="tbody-preview-lote" class="divide-y divide-slate-100 bg-white"></tbody>
@@ -349,8 +350,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20261118125201"></script>
+  <script src="app.js?v=20261118171500"></script>
 </body>
 </html>
-
-

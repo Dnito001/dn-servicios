@@ -904,7 +904,115 @@ window.guardarServicioIndividual = async function (e) {
 };
 
 // ============================================================================
-// CARGA RÁPIDA SEMANAL (INTERFAZ COMPLETA + DETECTOR DE PRECIOS Y DUPLICADOS)
+// EXTRACCIÓN DE CLIENTE DESDE LA DESCRIPCIÓN
+// ============================================================================
+const PALABRAS_TECNICAS_NO_CLIENTE = new Set([
+  "carga", "cabezal", "cabezales", "tinta", "tintas", "cartucho", "cartuchos",
+  "almohadilla", "almohadillas", "teclado", "teclados", "pantalla", "pantallas",
+  "display", "tactil", "vidrio", "glass", "bateria", "baterias", "placa", "placas",
+  "madre", "motherboard", "flex", "cable", "cables", "pin", "pines", "puerto",
+  "puertos", "conector", "conectores", "disco", "discos", "duro", "ssd", "hdd",
+  "ram", "memoria", "memorias", "sistema", "operativo", "software", "hardware",
+  "windows", "linux", "office", "word", "excel", "autocad", "photoshop", "corel",
+  "coreldraw", "canva", "drivers", "driver", "programas", "programa", "aplicacion",
+  "app", "flujo", "xuper", "datos", "archivos", "fotos", "fotografias", "cuentas",
+  "cuenta", "google", "icloud", "frp", "firmware", "bios", "contador", "contadores",
+  "color", "negro", "negra", "amarillo", "cian", "magenta", "impresora", "impresoras",
+  "notebook", "laptop", "laptops", "pc", "escritorio", "servidor", "monitor",
+  "monitores", "tv", "smart", "box", "stick", "celular", "celulares", "telefono",
+  "telefonos", "smartphone", "parlante", "parlantes", "reloj", "smartwatch",
+  "gps", "plotter", "sublimacion", "cameo", "jarra", "termica", "pasta", "cooler",
+  "ventilador", "bisagra", "bisagras", "carcasa", "tapa", "camara", "web", "audio",
+  "video", "red", "redes", "wifi", "internet", "fuente", "poder", "corriente",
+  "encendido", "socket", "cpu", "procesador", "gpu", "grafica", "hojas", "hoja",
+  "papel", "arrastre", "mecanismo", "toner", "drum", "fusor", "rodillo", "sensor",
+  "motor", "encoder", "circular", "damper", "dampers", "continuo", "imagenes",
+  "documentos", "radiografia", "estado", "mantenimiento", "limpieza", "reparacion",
+  "cambio", "instalacion", "configuracion", "revision", "diagnostico", "reset",
+  "recarga", "traspaso", "respaldo", "backup", "desbloqueo", "actualizacion",
+  "impresion", "escaneo", "hp", "epson", "brother", "canon", "acer", "asus", "dell",
+  "lenovo", "samsung", "galaxy", "xiaomi", "redmi", "poco", "iphone", "apple",
+  "motorola", "moto", "honor", "jbl", "amazon", "amazfit", "silhouette", "ofimatica",
+  "oficina", "cd", "dvd", "usb", "hdmi", "vga", "completo", "completa", "general",
+  "preventivo", "interno", "interna", "externo", "externa", "nuevo", "nueva",
+  "roto", "rota", "corto", "agua", "humedad", "calor", "luz", "unidad", "modulo",
+  "fpc", "chip", "smd", "soldadura", "resoldado", "formateo", "activacion", "licencia",
+  "android", "ios", "mac", "macbook", "tablet", "consola", "router", "modem",
+  "cargador", "adaptador", "escaner", "scanner", "multifuncional", "laser", "ecotank",
+  "y", "e", "o", "u", "con", "sin", "por", "en", "a", "al", "el", "la", "los", "las",
+  "un", "una", "que", "no", "mas", "muy", "todo", "todos", "sus", "su"
+]);
+
+function capitalizarCliente(nombre) {
+  return String(nombre || "")
+    .trim()
+    .split(/\s+/)
+    .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1) : ""))
+    .join(" ");
+}
+
+function extraerClienteDeTexto(textoCrudo) {
+  let texto = String(textoCrudo || "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[|\s]+$/, "")
+    .trim();
+  let cliente = "";
+
+  // 1. Formato explícito: "cliente: Derlis", "(cliente Derlis)", "- cli: Derlis"
+  const regexExplicito = /(?:\s*[-–|,(]?\s*)\b(?:cliente|cli)\s*[:\-]?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ0-9.\s]{1,35}?)\s*\)?$/i;
+  let m = texto.match(regexExplicito);
+  if (m) {
+    cliente = capitalizarCliente(m[1]);
+    texto = texto.slice(0, m.index).replace(/[-–|,(\s]+$/, "").trim();
+    return { textoSinCliente: texto, cliente };
+  }
+
+  // 2. Formato entre corchetes al final: "... [Derlis]"
+  const regexCorchetes = /\s*\[\s*([^\]]{2,40})\s*\]\s*$/;
+  m = texto.match(regexCorchetes);
+  if (m) {
+    cliente = capitalizarCliente(m[1]);
+    texto = texto.slice(0, m.index).replace(/[-–|,\s]+$/, "").trim();
+    return { textoSinCliente: texto, cliente };
+  }
+
+  // 3. Formato separado por barra vertical: "reparar monitor Dell | Derlis"
+  const regexPipe = /^(.+?)\s*\|\s*([^|]{2,40})$/;
+  m = texto.match(regexPipe);
+  if (m) {
+    cliente = capitalizarCliente(m[2]);
+    texto = m[1].trim();
+    return { textoSinCliente: texto, cliente };
+  }
+
+  // 4. Formato natural al final: "... de Derlis", "... de Don Carlos", "... para Juan Pérez"
+  const regexNatural = /^(.+)\s+(?:de(?:\s+la)?|del|para)\s+((?:(?:sr\.?|sra\.?|don|doña|dona|prof\.?|lic\.?|dr\.?|dra\.?|ing\.?)\s+)?[A-ZÁÉÍÓÚÑa-záéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ.]{1,25}(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ.]{1,25})?)$/i;
+  m = texto.match(regexNatural);
+  if (m) {
+    const posibleTrabajo = m[1].trim();
+    const posibleCliente = m[2].trim();
+    const palabras = posibleCliente
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\./g, "")
+      .split(/\s+/)
+      .filter(Boolean);
+
+    const tieneTratamiento = /^(sr|sra|don|dona|prof|lic|dr|dra|ing)$/.test(palabras[0]);
+    const contienePalabraTecnica = palabras.some((p) => PALABRAS_TECNICAS_NO_CLIENTE.has(p));
+
+    if (posibleTrabajo.length >= 4 && (tieneTratamiento || !contienePalabraTecnica)) {
+      cliente = capitalizarCliente(posibleCliente);
+      texto = posibleTrabajo.replace(/[-–:,\s]+$/, "").trim();
+    }
+  }
+
+  return { textoSinCliente: texto, cliente };
+}
+
+// ============================================================================
+// CARGA RÁPIDA SEMANAL (INTERFAZ COMPLETA + DETECTOR DE PRECIOS, CLIENTES Y DUPLICADOS)
 // ============================================================================
 window.abrirModalCargaLote = function () {
   document.getElementById("inp-lunes-lote").value = obtenerLunesActualYYYYMMDD();
@@ -991,21 +1099,34 @@ window.analizarLote = function () {
     }
     if (cambioDia && !l) continue;
 
+    // Fecha sola en una línea (ej: "18/11/2029:" o "18/11/2026")
+    const matchFechaSola = l.match(/^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)[\s:–-]*$/);
+    if (matchFechaSola) {
+      fCurso = normalizarFecha(matchFechaSola[1]);
+      ctxEquipo = null;
+      continue;
+    }
+
+    // Fecha + servicio en la misma línea (ej: "18/11/2026 - cambio de teclado 50.000gs")
     const matchFecha = l.match(/^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s*[-:–]\s*(.+)$/);
     if (matchFecha) {
       fCurso = normalizarFecha(matchFecha[1]);
       l = matchFecha[2].trim();
     }
 
-    const { textoSinPrecio, precio } = extraerPrecioDeTexto(l.replace(/^[-*•\d.)\s]+/, ""));
+    const lineaSinVineta = l.replace(/^(?:[-*•]+|\d+[.)])\s*/, "").trim();
+    const { textoSinPrecio, precio } = extraerPrecioDeTexto(lineaSinVineta);
     if (!textoSinPrecio) continue;
+
+    const { textoSinCliente, cliente } = extraerClienteDeTexto(textoSinPrecio);
+    const descFinal = textoSinCliente || textoSinPrecio;
 
     let marcaF = "Genérico";
     let catF = "Notebook / Laptop";
     let modF = "";
-    const tLow = textoSinPrecio.toLowerCase();
+    const tLow = descFinal.toLowerCase();
 
-    if (tLow.includes("epson") || /\bl3\d{2,3}\b/i.test(textoSinPrecio)) marcaF = "Epson";
+    if (tLow.includes("epson") || /\bl3\d{2,3}\b/i.test(descFinal)) marcaF = "Epson";
     else if (tLow.includes("hp")) marcaF = "HP";
     else if (tLow.includes("brother")) marcaF = "Brother";
     else if (tLow.includes("canon")) marcaF = "Canon";
@@ -1013,7 +1134,7 @@ window.analizarLote = function () {
     else if (tLow.includes("asus")) marcaF = "Asus";
     else if (tLow.includes("dell")) marcaF = "Dell";
     else if (tLow.includes("lenovo")) marcaF = "Lenovo";
-    else if (tLow.includes("samsung") || /\b(galaxy|a\d{2}[s]?|j\d|s2\d|m\d{2})\b/i.test(textoSinPrecio)) marcaF = "Samsung";
+    else if (tLow.includes("samsung") || /\b(galaxy|a\d{2}[s]?|j\d|s2\d|m\d{2})\b/i.test(descFinal)) marcaF = "Samsung";
     else if (tLow.includes("xiaomi") || tLow.includes("redmi") || tLow.includes("poco")) marcaF = "Xiaomi";
     else if (tLow.includes("iphone") || tLow.includes("apple")) marcaF = "Apple";
     else if (tLow.includes("motorola") || tLow.includes("moto ")) marcaF = "Motorola";
@@ -1027,18 +1148,18 @@ window.analizarLote = function () {
     else if (tLow.includes("jbl") || tLow.includes("parlante")) catF = "Audio / Consola / Portátil";
     else if (tLow.includes("disco") || tLow.includes("hdd")) catF = "Almacenamiento";
 
-    const matchEpson = textoSinPrecio.match(/\b(L\d{3,4})\b/i);
-    const matchIphone = textoSinPrecio.match(/\b(iPhone\s*\d+\s*(?:Pro\s*Max|Pro|Plus|Mini|XR|XS)?)\b/i);
-    const matchGalaxy = textoSinPrecio.match(/\b(Galaxy\s+[A-Z0-9]+|A\d{2}[a-z]?|S\d{2})\b/i);
+    const matchEpson = descFinal.match(/\b(L\d{3,4})\b/i);
+    const matchIphone = descFinal.match(/\b(iPhone\s*\d+\s*(?:Pro\s*Max|Pro|Plus|Mini|XR|XS)?)\b/i);
+    const matchGalaxy = descFinal.match(/\b(Galaxy\s+[A-Z0-9]+|A\d{2}[a-z]?|S\d{2})\b/i);
     if (matchEpson) modF = `EcoTank ${matchEpson[1].toUpperCase()}`;
     else if (matchIphone) modF = matchIphone[1];
     else if (matchGalaxy) modF = matchGalaxy[1].toLowerCase().startsWith("galaxy") ? matchGalaxy[1] : `Galaxy ${matchGalaxy[1].toUpperCase()}`;
 
     const tieneM = marcaF !== "Genérico" || modF !== "";
-    const palabrasTrabajo = ["cambio", "reparación", "reparacion", "mantenimiento", "desbloqueo", "pasar", "limpieza", "instalación", "instalacion", "actualizar", "recarga", "reset", "placa", "flex", "pin", "pantalla", "bateria", "batería", "teclado", "ssd", "ram"];
+    const palabrasTrabajo = ["cambio", "reparación", "reparacion", "reparar", "mantenimiento", "desbloqueo", "pasar", "limpieza", "instalación", "instalacion", "actualizar", "recarga", "reset", "placa", "flex", "pin", "pantalla", "bateria", "batería", "teclado", "ssd", "ram"];
     const tieneT = palabrasTrabajo.some((p) => tLow.includes(p));
 
-    if (tieneM && !tieneT && !precio) {
+    if (tieneM && !tieneT && !precio && !cliente) {
       ctxEquipo = { categoria: catF, marca: marcaF, modelo: modF || marcaF };
       continue;
     }
@@ -1057,10 +1178,11 @@ window.analizarLote = function () {
       categoria: catF,
       marca: marcaF,
       modelo: modF,
-      intervencion: deducirIntervencion(textoSinPrecio),
-      trabajo: textoSinPrecio.charAt(0).toUpperCase() + textoSinPrecio.slice(1),
-      repuestos: deducirRepuestos(textoSinPrecio),
-      precio: precio || ""
+      intervencion: deducirIntervencion(descFinal),
+      trabajo: descFinal.charAt(0).toUpperCase() + descFinal.slice(1),
+      repuestos: deducirRepuestos(descFinal),
+      precio: precio || "",
+      cliente: cliente || ""
     });
 
     if (tieneM) ctxEquipo = { categoria: catF, marca: marcaF, modelo: modF };
@@ -1129,6 +1251,7 @@ function renderizarPreviewLote() {
                 <span class="text-[11px] font-extrabold ${it.precio ? "text-emerald-700" : "text-slate-400"}">${it.precio || "-"}</span>
               </div>
               <span class="text-[11px] text-slate-600 mb-1 pr-14">${it.trabajo}</span>
+              ${it.cliente ? `<span class="text-[10px] font-bold text-teal-700 mb-1">Cliente: ${it.cliente}</span>` : ""}
               <div class="flex items-center justify-between gap-2">
                 <span class="text-[10px] font-semibold text-indigo-600">${it.intervencion}</span>
                 <button type="button" onclick="window.quitarFilaDeLote(${it.idx})" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded text-[10px] font-bold transition cursor-pointer">Quitar</button>
@@ -1149,6 +1272,7 @@ function renderizarPreviewLote() {
       <td class="py-2.5 px-4 text-indigo-700 font-semibold text-[11px] max-w-[140px]">${item.intervencion}</td>
       <td class="py-2.5 px-4 text-slate-800 text-xs">${item.trabajo}</td>
       <td class="py-2.5 px-4 text-center font-black text-emerald-700 whitespace-nowrap">${item.precio || "-"}</td>
+      <td class="py-2.5 px-4 text-center whitespace-nowrap">${item.cliente ? `<span class="inline-block px-2 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold">${item.cliente}</span>` : `<span class="text-slate-400">-</span>`}</td>
       <td class="py-2.5 px-4 text-center"><button type="button" onclick="window.quitarFilaDeLote(${idx})" class="text-[10px] px-2.5 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold transition cursor-pointer">Quitar</button></td>
     </tr>
   `).join("");
@@ -1183,7 +1307,7 @@ window.guardarLoteConfirmado = async function () {
     precio: item.precio,
     tecnico: TECNICO_NOMBRE,
     estado: "Entregado",
-    notas: ""
+    notas: item.cliente || ""
   }));
 
   const nuevosNorm = normalizarRegistros(nuevos);
