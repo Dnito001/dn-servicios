@@ -6,8 +6,8 @@
 const PIN_ACCESO = "000";
 const PIN_INGRESOS = "1212";
 const TECNICO_NOMBRE = "ANGEL VILLALBA";
-const AUTH_SESSION_KEY = "dn_servicios_autenticado_supa_v1";
-const CACHE_LOCAL_KEY = "dn_angel_cache_supa_v1";
+const AUTH_SESSION_KEY = "dn_servicios_autenticado_supa_v2";
+const CACHE_LOCAL_KEY = "dn_angel_cache_supa_v2";
 
 const SUPABASE_URL = "https://fnnfcjmpobzbcjzwkuow.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Yy8MvXnSvj1SqivYCs630w_ahx4zwKF";
