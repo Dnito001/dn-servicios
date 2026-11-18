@@ -1,13 +1,13 @@
 // ============================================================================
 // DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN: 000)
-// BASE SUPABASE + BÓVEDA (1212) + CARGA RÁPIDA RESTAURADA Y BOTONES BLINDADOS
+// BASE SUPABASE + BÓVEDA (1212) + PROTECCIÓN ANTI-PÉRDIDA DE DATOS EN PANTALLA
 // ============================================================================
 
 const PIN_ACCESO = "000";
 const PIN_INGRESOS = "1212";
 const TECNICO_NOMBRE = "ANGEL VILLALBA";
-const AUTH_SESSION_KEY = "dn_servicios_autenticado_supa_v2";
-const CACHE_LOCAL_KEY = "dn_angel_cache_supa_v2";
+const AUTH_SESSION_KEY = "dn_servicios_autenticado_supa_v3";
+const CACHE_LOCAL_KEY = "dn_angel_cache_supa_v3";
 
 const SUPABASE_URL = "https://fnnfcjmpobzbcjzwkuow.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Yy8MvXnSvj1SqivYCs630w_ahx4zwKF";
@@ -21,7 +21,7 @@ const HEADERS_SUPA = {
 const SVG_EDIT = `<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-// REGISTROS HISTÓRICOS 
+// TUS 85 REGISTROS MAESTROS SEGUROS
 const DATOS_MAESTROS = [
   { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
   { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
@@ -102,14 +102,15 @@ let timerBusqueda = null;
 let ultimoAnchoMovil = window.innerWidth < 768;
 
 // ============================================================================
-// FUNCIONES DE SUPABASE
+// FUNCIONES DE SUPABASE (CON PROTECCIÓN ANTI-PÉRDIDA LOCAL)
 // ============================================================================
 async function guardarServicioSupabase(reg) {
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/servicios`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios`, {
       method: "POST", headers: HEADERS_SUPA, body: JSON.stringify(empaquetarParaSupabase(reg))
     });
-  } catch (e) {}
+    if (!res.ok) console.warn("Supabase rechazó guardar. Revise permisos RLS.", await res.text());
+  } catch (e) { console.error("Error red al guardar:", e); }
 }
 
 async function guardarLoteSupabase(loteCrudo) {
@@ -118,7 +119,7 @@ async function guardarLoteSupabase(loteCrudo) {
     await fetch(`${SUPABASE_URL}/rest/v1/servicios`, {
       method: "POST", headers: HEADERS_SUPA, body: JSON.stringify(payload)
     });
-  } catch (e) {}
+  } catch (e) { console.error("Error red lote:", e); }
 }
 
 async function eliminarServicioSupabase(id) {
@@ -126,24 +127,8 @@ async function eliminarServicioSupabase(id) {
     await fetch(`${SUPABASE_URL}/rest/v1/servicios?id=eq.${id}`, {
       method: "DELETE", headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
     });
-  } catch (e) {}
+  } catch (e) { console.error(e); }
 }
-
-window.migrarBaseASupabase = async function() {
-  const btn = document.getElementById("btn-subir-drive");
-  if(btn) { btn.innerHTML = `Subiendo...`; btn.disabled = true; }
-  try {
-    const payload = servicios.map(empaquetarParaSupabase);
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios`, { method: "POST", headers: HEADERS_SUPA, body: JSON.stringify(payload) });
-    if (res.ok) {
-      alert(`¡Éxito! Se migraron ${servicios.length} servicios a Supabase.`);
-      document.getElementById("modal-drive").classList.replace("flex", "hidden");
-    }
-  } catch (e) { } 
-  finally {
-    if(btn) { btn.innerHTML = `Migrar Base Local a Supabase`; btn.disabled = false; }
-  }
-};
 
 function empaquetarParaSupabase(reg) {
   return {
@@ -163,17 +148,25 @@ function empaquetarParaSupabase(reg) {
 }
 
 async function cargarBaseDeDatos() {
+  let cargadoLocal = false;
   const cache = localStorage.getItem(CACHE_LOCAL_KEY);
   if (cache) {
     try {
-      servicios = normalizarRegistros(JSON.parse(cache));
-      poblarSelectores(); aplicarFiltros();
+      const p = JSON.parse(cache);
+      if (p && p.length > 0) { servicios = normalizarRegistros(p); cargadoLocal = true; }
     } catch(e) {}
   }
+  if (!cargadoLocal) { servicios = normalizarRegistros([...DATOS_MAESTROS]); }
+  
+  poblarSelectores(); aplicarFiltros();
+  if (bovedaDesbloqueada) renderizarPanelIngresos();
+
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?select=*`, {
+      method: 'GET',
       headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
     });
+    
     if (res.ok) {
       const data = await res.json();
       if (data && data.length > 0) {
@@ -185,15 +178,17 @@ async function cargarBaseDeDatos() {
       } else {
         servicios = normalizarRegistros([...DATOS_MAESTROS]);
       }
+      
       servicios = ordenarPorFechaYNumero(servicios);
       localStorage.setItem(CACHE_LOCAL_KEY, JSON.stringify(servicios));
       poblarSelectores(); aplicarFiltros();
       if (bovedaDesbloqueada) renderizarPanelIngresos();
       actualizarBadgeSupabase(true);
+    } else {
+      actualizarBadgeSupabase(false);
     }
   } catch (e) {
     actualizarBadgeSupabase(false);
-    if (servicios.length === 0) { servicios = normalizarRegistros([...DATOS_MAESTROS]); poblarSelectores(); aplicarFiltros(); }
   }
 }
 
@@ -203,6 +198,24 @@ function actualizarBadgeSupabase(conectado) {
   if (conectado) { b.textContent = "Supabase Conectado (SQL)"; b.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600 font-bold tracking-wide"; } 
   else { b.textContent = "Modo Local (Sin red)"; b.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-600 font-bold tracking-wide"; }
 }
+
+window.migrarBaseASupabase = async function() {
+  const btn = document.getElementById("btn-subir-drive");
+  if(btn) { btn.innerHTML = `Subiendo...`; btn.disabled = true; }
+  try {
+    const payload = servicios.map(empaquetarParaSupabase);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios`, { method: "POST", headers: HEADERS_SUPA, body: JSON.stringify(payload) });
+    if (res.ok) {
+      alert(`¡Éxito! Se migraron ${servicios.length} servicios a Supabase.`);
+      document.getElementById("modal-drive").classList.replace("flex", "hidden");
+    } else {
+      alert("Error al migrar. ¿Desactivaste el RLS en Supabase?");
+    }
+  } catch (e) { } 
+  finally {
+    if(btn) { btn.innerHTML = `Migrar Base Local a Supabase`; btn.disabled = false; }
+  }
+};
 
 // ============================================================================
 // UTILIDADES COMUNES
@@ -237,7 +250,7 @@ function obtenerInfoSemana(fechaDDMMYYYY) {
   const p = String(fechaDDMMYYYY ?? "").split("/"); if (p.length !== 3) return { key: "", label: "" };
   const [dd, mm, yyyy] = p.map(Number); const f = new Date(yyyy, mm - 1, dd);
   const dia = f.getDay(); const diffL = dia === 0 ? -6 : 1 - dia;
-  const lun = new Date(yyyy, mm - 1, dd + diffLunes); const dom = new Date(lun.getFullYear(), lun.getMonth(), lun.getDate() + 6);
+  const lun = new Date(yyyy, mm - 1, dd + diffL); const dom = new Date(lun.getFullYear(), lun.getMonth(), lun.getDate() + 6);
   const lDD = String(lun.getDate()).padStart(2, "0"); const lMM = String(lun.getMonth() + 1).padStart(2, "0");
   const dDD = String(dom.getDate()).padStart(2, "0"); const dMM = String(dom.getMonth() + 1).padStart(2, "0");
   return { key: `${lun.getFullYear()}-${lMM}-${lDD}`, label: `Semana del ${lDD}/${lMM} al ${dDD}/${dMM}/${dom.getFullYear()}` };
@@ -289,10 +302,6 @@ function deducirRepuestos(trabajo) {
   if (t.includes("pantalla")) rep.push("Módulo de Pantalla");
   if (t.includes("tinta")) rep.push("Tinta");
   return rep.length > 0 ? rep.join(" + ") : "Ninguno";
-}
-
-function limpiarTextoComparacion(str) {
-  return String(str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
 
 function ordenarPorFechaYNumero(lista) {
@@ -805,9 +814,14 @@ function renderizarVista(lista) {
     return;
   }
 
+  const conteoGemelos = {};
+  lista.forEach(i => conteoGemelos[i._claveGemelo] = (conteoGemelos[i._claveGemelo] || 0) + 1);
+
   if (window.innerWidth < 768 && listaMovil) {
-    listaMovil.innerHTML = [...lista].reverse().map(item => `
-        <div class="p-4 space-y-2 hover:bg-slate-50">
+    listaMovil.innerHTML = [...lista].reverse().map(item => {
+      const esGemelo = conteoGemelos[item._claveGemelo] > 1;
+      return `
+        <div class="p-4 space-y-2 ${esGemelo ? "bg-amber-50/40" : "hover:bg-slate-50"}">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="font-bold text-teal-700 text-sm">${item.id}</span>
@@ -816,16 +830,19 @@ function renderizarVista(lista) {
             </div>
             <div class="flex items-center gap-1.5">
               <button onclick="window.abrirEditarServicio('${item.id}')" class="text-xs font-extrabold px-2.5 py-1 rounded-md ${item.precio ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-slate-100 text-slate-600 border border-slate-300"}">${item.precio || "+ Gs"}</button>
-              <button onclick="window.eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1">${SVG_TRASH}</button>
+              <button onclick="window.eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer">${SVG_TRASH}</button>
             </div>
           </div>
           <p class="font-bold text-slate-900 text-sm">${item.marca} <span class="font-normal text-slate-500">· ${item.modelo}</span></p>
           <p class="text-xs font-medium text-teal-800">${item.intervencion}</p>
           <p class="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">${item.trabajo}</p>
-        </div>`).join("");
+        </div>`;
+    }).join("");
   } else if (tbody) {
-    tbody.innerHTML = [...lista].reverse().map(item => `
-        <tr class="hover:bg-slate-50 transition group">
+    tbody.innerHTML = [...lista].reverse().map(item => {
+      const esGemelo = conteoGemelos[item._claveGemelo] > 1;
+      return `
+        <tr class="${esGemelo ? "bg-amber-50/40" : "hover:bg-slate-50"} transition group">
           <td class="py-3 px-4 font-bold text-teal-700">${item.id}</td>
           <td class="py-3 px-4"><div class="font-semibold text-slate-800">${item.fecha}</div><div class="text-[11px] font-bold text-indigo-600 uppercase">${item._dia}</div></td>
           <td class="py-3 px-4"><span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-md border ${obtenerColorBadge(item.categoria)}">${item.categoria}</span></td>
@@ -839,7 +856,8 @@ function renderizarVista(lista) {
             <button onclick="window.abrirEditarServicio('${item.id}')" class="text-slate-400 hover:text-teal-600 p-1 cursor-pointer transition">${SVG_EDIT}</button>
             <button onclick="window.eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer transition">${SVG_TRASH}</button>
           </td>
-        </tr>`).join("");
+        </tr>`;
+    }).join("");
   }
 }
 
@@ -858,14 +876,6 @@ function actualizarKPIs(filtrados) {
   if (kCat) kCat.textContent = calcularModa(filtrados.map((s) => s.categoria));
   if (kMarca) kMarca.textContent = calcularModa(filtrados.map((s) => s.marca));
   if (kInt) kInt.textContent = calcularModa(todasInt.filter(Boolean));
-}
-
-function generarNuevoID(offset = 1) {
-  const maxNum = servicios.reduce((acc, s) => {
-    const n = parseInt(String(s.id).replace(/\D/g, "")) || 0;
-    return n > acc ? n : acc;
-  }, 0);
-  return `SER-${String(maxNum + offset).padStart(3, "0")}`;
 }
 
 window.abrirModalDrive = function() { document.getElementById("modal-drive").classList.replace("hidden", "flex"); };

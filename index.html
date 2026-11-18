@@ -119,6 +119,7 @@
         </div>
       </section>
     </main>
+
     <button id="btn-nuevo-flotante" onclick="window.abrirModalNuevoRegistro()" class="md:hidden fixed bottom-5 right-5 z-40 bg-teal-600 active:bg-teal-700 text-white rounded-full p-4 shadow-2xl border-2 border-white flex items-center justify-center"><i data-lucide="plus" class="w-6 h-6"></i></button>
   </div>
 
@@ -247,7 +248,6 @@
   <div id="modal-lote" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-5xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[95vh] flex flex-col relative">
       
-      <!-- Header -->
       <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-3">
           <i data-lucide="sparkles" class="w-6 h-6 text-indigo-400"></i>
@@ -259,7 +259,6 @@
         <button type="button" onclick="window.cerrarModalLote()" class="text-slate-400 hover:text-white transition"><i data-lucide="x" class="w-6 h-6"></i></button>
       </div>
       
-      <!-- Body -->
       <div class="p-6 overflow-y-auto custom-scroll flex-1 space-y-6">
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -285,10 +284,8 @@
           <span id="resumen-lote" class="text-sm font-bold text-emerald-700"></span>
         </div>
 
-        <!-- Alerta de duplicados -->
         <div id="alerta-duplicados-lote" class="hidden"></div>
 
-        <!-- Resultados Visuales -->
         <div id="contenedor-resumen-dias" class="hidden space-y-3">
           <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
             <i data-lucide="calendar-check" class="w-4 h-4 text-teal-600"></i> RESUMEN CLASIFICADO POR DÍA Y MONTOS EN GUARANÍES
@@ -321,7 +318,6 @@
         
       </div>
       
-      <!-- Footer -->
       <div class="px-6 py-4 bg-white border-t border-slate-200 flex justify-end gap-3 shrink-0">
         <button type="button" onclick="window.cerrarModalLote()" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 transition">
           Cancelar
@@ -353,9 +349,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20261118112602"></script>
+  <script src="app.js?v=20261118123449"></script>
 </body>
 </html>
-
-
-
