@@ -1,14 +1,15 @@
 // ============================================================================
-// DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE JUNIOR ALMIRÓN (PIN: 111)
-// BASE SUPABASE (SQL) + EXTRACCIÓN COMPLETA DE PRECIOS (GS) Y CLIENTES
+// DN SERVICIOS Y TECNOLOGÍAS - SISTEMA DE ÁNGEL VILLALBA (PIN: 000)
+// BASE SUPABASE (SQL) + BÓVEDA (1212) + CARGA RÁPIDA + VERIFICACIÓN COMPLETA
 // ============================================================================
 
-const PIN_ACCESO = "111";
-const TECNICO_NOMBRE = "JUNIOR ALMIRON";
-const AUTH_SESSION_KEY = "dn_junior_autenticado_supa_v1";
-const CACHE_LOCAL_KEY = "dn_junior_cache_supa_v1";
+const PIN_ACCESO = "000";
+const PIN_INGRESOS = "1212";
+const TECNICO_NOMBRE = "ANGEL VILLALBA";
+const AUTH_SESSION_KEY = "dn_servicios_autenticado_supa_v4";
+const CACHE_LOCAL_KEY = "dn_angel_cache_supa_v4";
 
-// CREDENCIALES SUPABASE (clave publishable -> solo header apikey)
+// CREDENCIALES SUPABASE (clave publishable -> solo header apikey, sin Bearer JWT)
 const SUPABASE_URL = "https://fnnfcjmpobzbcjzwkuow.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Yy8MvXnSvj1SqivYCs630w_ahx4zwKF";
 
@@ -25,382 +26,89 @@ const HEADERS_POST = {
 const SVG_EDIT = `<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>`;
 const SVG_TRASH = `<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-const RAW_DATOS_JUNIOR = [
-  ["REP-001", "20/07/2026", "Smartphone", "Samsung", "Galaxy A06", "Cambio de pantalla", "En DN Tecnología"],
-  ["REP-002", "20/07/2026", "Smartphone", "Samsung", "Galaxy A34", "Cambio de pantalla", "En DN Tecnología"],
-  ["REP-003", "20/07/2026", "Smartphone", "Xiaomi", "Redmi Note 12", "Cambio de pantalla", "En DN Tecnología"],
-  ["REP-004", "20/07/2026", "Smartphone", "Samsung", "Galaxy A12", "Cambio de pantalla", "En DN Tecnología"],
-  ["REP-005", "21/07/2026", "Smartphone", "Samsung", "Galaxy A12", "Desbloqueo", ""],
-  ["REP-006", "21/07/2026", "Smartphone", "Xiaomi", "Redmi Note 12", "Desbloqueo", ""],
-  ["REP-007", "21/07/2026", "Smartphone", "Samsung", "Galaxy A02", "Cambio de pantalla", ""],
-  ["REP-008", "22/07/2026", "Smartphone", "Samsung", "Galaxy A11", "Desbloqueo FRP", ""],
-  ["REP-009", "22/07/2026", "Smartphone", "Apple", "iPhone 11 a iPhone 16", "Traspaso de datos", ""],
-  ["REP-010", "22/07/2026", "Smartphone", "Motorola", "Moto E7i Power", "Cambio de pantalla", ""],
-  ["REP-011", "22/07/2026", "Smartphone", "Samsung", "Galaxy J2 Pro", "Desbloqueo", ""],
-  ["REP-012", "22/07/2026", "Smartphone", "Xiaomi", "Redmi Note 13", "Reparación de sensor", ""],
-  ["REP-013", "22/07/2026", "Smartphone", "Samsung", "Galaxy A15", "Colocación de estuche y antiquiebre", "Accesorio"],
-  ["REP-014", "25/07/2026", "Smartphone", "Xiaomi", "Redmi Note 12 Pro", "Cambio de pantalla", ""],
-  ["REP-015", "25/07/2026", "Smartphone", "Samsung", "Galaxy A20s", "Desbloqueo", ""],
-  ["REP-016", "25/07/2026", "Smartphone", "Samsung", "Galaxy A15", "Reparación de housing", ""],
-  ["REP-017", "25/07/2026", "Smartphone", "Ulefone", "Armor 22", "Desbloqueo", ""],
-  ["REP-018", "25/07/2026", "Laptop", "HP", "Laptop 15 pulgadas", "Reparación de bisagras", ""],
-  ["REP-019", "27/07/2026", "Smartphone", "Samsung", "Galaxy A12", "Reparación de botón y speaker", "Cliente de Derlis"],
-  ["REP-020", "27/07/2026", "Almacenamiento", "Genérico", "Disco Duro HDD", "Recuperación de archivos", "Cliente de Junior"],
-  ["REP-021", "28/07/2026", "Laptop", "HP", "Laptop HP", "Cambio de HDD a SSD, sistema y Office", ""],
-  ["REP-022", "28/07/2026", "Smartphone", "Samsung", "Galaxy A53", "Cambio de pantalla", ""],
-  ["REP-023", "29/07/2026", "Smartphone", "Apple", "iPhone 13 Pro", "Reparación de pantalla verde", "Ana"],
-  ["REP-024", "29/07/2026", "PC / Software", "Genérico", "Sistema PC", "Soporte técnico de firma digital", ""],
-  ["REP-025", "29/07/2026", "Infraestructura", "Genérico", "Instalación eléctrica", "Solución de parte eléctrica", ""],
-  ["REP-026", "29/07/2026", "Tablet", "Samsung", "Galaxy Tab S6 Lite", "Cambio de pantalla", ""],
-  ["REP-027", "30/07/2026", "Smartphone", "Samsung", "Galaxy M13", "Cambio de pantalla", ""],
-  ["REP-028", "30/07/2026", "Smartphone", "Motorola", "Moto E13i", "Cambio de pantalla", ""],
-  ["REP-029", "31/07/2026", "Smartphone", "Samsung", "Galaxy A12", "Cambio de pantalla", ""],
-  ["REP-030", "31/07/2026", "Smartphone", "Apple", "iPhone 8 Plus", "Cambio de housing y reparación de carga", ""],
-  ["REP-031", "01/08/2026", "Smartphone", "Apple", "iPhone XR", "Re-pegado de pantalla", ""],
-  ["REP-032", "01/08/2026", "Smartphone", "Apple", "iPhone 8 Plus", "Cambio de cámara, flex de carga y micrófono", ""],
-  ["REP-033", "01/08/2026", "Smartphone", "Samsung", "Galaxy A02s", "Reparación de botón", ""],
-  ["REP-034", "01/08/2026", "Smartphone", "Samsung", "Galaxy A52", "Cambio de pantalla", ""],
-  ["REP-035", "01/08/2026", "Smartphone", "Samsung", "Galaxy A01", "Cambio de pantalla", ""],
-  ["REP-036", "10/08/2026", "Impresora", "Epson", "Impresora Epson", "Cambio de cartucho y configuración", "20.000 Gs"],
-  ["REP-037", "11/08/2026", "PC / Redes", "Genérico", "PC Escritorio", "Optimización de PC lento y reparación WiFi", "Consultoría"],
-  ["REP-038", "11/08/2026", "Smartphone", "Xiaomi", "Redmi Note 8", "Solución a problemas de reinicio", ""],
-  ["REP-039", "11/08/2026", "Smartphone", "Samsung", "Galaxy A12", "Cambio de pantalla", ""],
-  ["REP-040", "11/08/2026", "Smartphone", "Samsung", "Galaxy A23", "Re-pegado de pantalla", ""],
-  ["REP-041", "11/08/2026", "Smartphone", "Xiaomi", "Redmi Note 13", "Cambio de batería", ""],
-  ["REP-042", "11/08/2026", "Electrónica", "Genérico", "Lector de antena", "Reparación de ficha coaxial", ""],
-  ["REP-043", "12/08/2026", "Smartphone", "Apple", "iPhone XR", "Cambio de pantalla", "Anotado como 12/02"],
-  ["REP-044", "12/08/2026", "Smartphone", "Xiaomi", "Redmi Note 12", "Cambio de pantalla", "Anotado como 12/02"],
-  ["REP-045", "13/08/2026", "Smartphone", "Xiaomi", "Redmi 12C", "Cambio de pantalla, pin de carga y desbrickeo", ""],
-  ["REP-046", "13/08/2026", "Smartphone", "Samsung", "Galaxy A15", "Recuperación de archivos", ""],
-  ["REP-047", "13/08/2026", "Smartphone", "Xiaomi", "Redmi A2", "Cambio de pantalla", ""],
-  ["REP-048", "14/08/2026", "Smartphone", "Xiaomi", "Redmi 13C", "Cambio de pantalla", "Ana"],
-  ["REP-049", "14/08/2026", "Tablet", "C-Idea", "Tablet C-Idea", "Reparación de pin de carga", ""],
-  ["REP-050", "14/08/2026", "Smartphone", "Samsung", "Galaxy A34", "Reparación de táctil", ""],
-  ["REP-051", "15/08/2026", "Smartphone", "Apple", "iPhone 12", "Limpieza de cámara", "Con servicio delivery"],
-  ["REP-052", "15/08/2026", "Smartphone", "Samsung", "Galaxy A24", "Cambio de pantalla, batería y botón", "Ana"],
-  ["REP-053", "15/08/2026", "Smartphone", "Samsung", "Galaxy A02s", "Cambio de pantalla", ""],
-  ["REP-054", "15/08/2026", "Smartphone", "Samsung", "Galaxy A03 Core", "Cambio de pantalla, placa y pin de carga", ""],
-  ["REP-055", "17/08/2026", "Smartphone", "Samsung", "Galaxy A20s", "Cambio de pin de carga", ""],
-  ["REP-056", "17/08/2026", "Smartphone", "Samsung", "Galaxy A15", "Cambio de pantalla, pin de carga y micrófono", "Derlis"],
-  ["REP-057", "18/08/2026", "Smartphone", "Xiaomi", "Redmi a Redmi", "Traspaso de datos", ""],
-  ["REP-058", "18/08/2026", "Smartphone", "Xiaomi", "Redmi A1", "Cambio de pin de carga", ""],
-  ["REP-059", "19/08/2026", "PC / Software", "Genérico", "PC / Laptop", "Activación de paquete Office", ""],
-  ["REP-060", "20/08/2026", "Smartphone", "Samsung", "Galaxy A01", "Cambio de pantalla", "Derlis"],
-  ["REP-061", "20/08/2026", "Laptop", "HP", "Laptop 15 pulgadas", "Cambio de batería", ""],
-  ["REP-062", "20/08/2026", "Smartphone", "Samsung", "Galaxy A50", "Cambio de pantalla", ""],
-  ["REP-063", "20/08/2026", "Impresora", "Epson", "Serie L1200", "Cambio de rodillo de arrastre con fusor", ""],
-  ["REP-064", "21/08/2026", "Tablet", "Samsung", "Galaxy Tab A8", "Reparación de flex de carga y housing", ""],
-  ["REP-065", "21/08/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pin de carga y recuperación de datos", ""],
-  ["REP-066", "21/08/2026", "Smartphone", "Xiaomi", "Redmi 14C", "Cambio de pantalla", ""],
-  ["REP-067", "21/08/2026", "PC / Redes", "Genérico", "PC Escritorio", "Cambio de IP y reconfiguración LAN Ethernet", "Contaduría"],
-  ["REP-068", "21/08/2026", "Smartphone", "Xiaomi", "Redmi A1", "Cambio de pantalla", ""],
-  ["REP-069", "21/08/2026", "Smartphone", "Xiaomi", "Redmi A1", "Cambio de pin de carga", ""],
-  ["REP-070", "21/08/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", "Derlis"],
-  ["REP-071", "21/08/2026", "Smartphone", "Samsung", "Galaxy A15", "Cambio de pantalla", ""],
-  ["REP-072", "21/08/2026", "Smartphone", "Oppo", "A3x", "Recuperación de software", ""],
-  ["REP-073", "24/08/2026", "Smartphone", "Tecno", "Spark Go 2024", "Cambio de pantalla", ""],
-  ["REP-074", "24/08/2026", "Smartphone", "Samsung", "Galaxy A05", "Cambio de pantalla", ""],
-  ["REP-075", "24/08/2026", "Smartphone", "Xiaomi", "Redmi Note 8", "Cambio de tapa trasera", ""],
-  ["REP-076", "24/08/2026", "Smartphone", "Xiaomi", "Redmi Note 12", "Cambio de pantalla y desbloqueo", ""],
-  ["REP-077", "25/08/2026", "Smartphone", "Xiaomi", "Redmi 14C", "Limpieza por humedad y cambio de pantalla", ""],
-  ["REP-078", "25/08/2026", "Laptop", "Asus", "VivoBook", "Solución a trackpad numérico", ""],
-  ["REP-079", "26/08/2026", "Impresora", "HP", "Serie 2900", "Configuración de impresora en PC HP", ""],
-  ["REP-080", "26/08/2026", "Smartphone", "Samsung", "Galaxy A04", "Cambio de batería", ""],
-  ["REP-081", "26/08/2026", "Smartphone", "Samsung", "Galaxy A22", "Reparación de placa de carga, huella y pantalla", ""],
-  ["REP-082", "26/08/2026", "Smartphone", "Xiaomi", "Redmi Note 12S", "Cambio de pantalla", ""],
-  ["REP-083", "27/08/2026", "Smartphone", "Xiaomi", "Redmi Note 11", "Cambio de pantalla", ""],
-  ["REP-084", "27/08/2026", "Audio / Parlante", "JBL", "Charge 4 Versión S", "Cambio de batería y reparación de pin de carga", ""],
-  ["REP-085", "27/08/2026", "Smartphone", "Samsung", "Galaxy A04e", "Cambio de pantalla", ""],
-  ["REP-086", "27/08/2026", "Smartphone", "Samsung", "Galaxy A12", "Reparación de botón power", ""],
-  ["REP-087", "28/08/2026", "Smartphone", "Samsung", "Galaxy M13", "Re-pegado de pantalla", ""],
-  ["REP-088", "28/08/2026", "Smartphone", "Xiaomi", "Redmi 10C", "Reparación de pin de carga y cambio de pantalla", ""],
-  ["REP-089", "28/08/2026", "Impresora", "Epson", "TM-U220D", "Mantenimiento y reparación de engranajes", "Graciela"],
-  ["REP-090", "28/08/2026", "Smartphone", "Xiaomi", "Redmi Note 14 Pro", "Cambio de cámara y base de visor", ""],
-  ["REP-091", "29/08/2026", "Celular Básico", "Nokia", "Nokia 106", "Cambio de pin de carga", ""],
-  ["REP-092", "29/08/2026", "Smartphone", "Samsung", "Galaxy A32", "Cambio de pantalla", "Ana"],
-  ["REP-093", "29/08/2026", "Impresora", "Epson", "LX-350", "Mantenimiento de impresora matricial", ""],
-  ["REP-094", "29/08/2026", "Smartphone", "Xiaomi", "Mi 8 Lite", "Cambio de pantalla", "Ana"],
-  ["REP-095", "01/09/2026", "Audio / Radio", "Megastar", "Radio Megastar", "Cambio de batería", ""],
-  ["REP-096", "01/09/2026", "Smartphone", "Samsung", "Galaxy A12", "Cambio de pantalla", ""],
-  ["REP-097", "01/09/2026", "Smartphone", "Samsung", "Galaxy A01", "Reparación de línea de carga", ""],
-  ["REP-098", "02/09/2026", "Seguridad / Redes", "Genérico", "Cámaras WiFi (2 unidades)", "Instalación WiFi, eléctrica y tomacorriente", "2 fichas hembra y 7m cable"],
-  ["REP-099", "03/09/2026", "Smartphone", "Samsung", "Galaxy A02", "Reparación de botón power y desbloqueo", ""],
-  ["REP-100", "03/09/2026", "Smartphone", "Motorola", "Moto G42", "Reparación de sensor de carga", "Ana"],
-  ["REP-101", "03/09/2026", "Smartphone", "Samsung", "Galaxy J7 Neo", "Reparación de pin de carga", "Ana"],
-  ["REP-102", "03/09/2026", "Smartphone", "Samsung", "Galaxy A33", "Cambio de pantalla", ""],
-  ["REP-103", "03/09/2026", "Smartphone", "Samsung", "Galaxy A32", "Cambio de pantalla y desbloqueo", "Derlis"],
-  ["REP-104", "03/09/2026", "Smartphone", "Xiaomi", "Redmi 9A", "Reparación de botón power", ""],
-  ["REP-105", "03/09/2026", "Smartphone", "Apple", "Android a iPhone", "Traspaso de datos", ""],
-  ["REP-106", "03/09/2026", "Smartphone", "Apple", "iPhone 12", "Limpieza de pin de carga", ""],
-  ["REP-107", "03/09/2026", "Smartphone", "Apple", "iPhone XS Max", "Limpieza de parlante y pin de carga", ""],
-  ["REP-108", "04/09/2026", "Smartphone", "Apple", "iPhone 14 Pro Max", "Cambio de pantalla con trasplante de IC", ""],
-  ["REP-109", "04/09/2026", "Smartphone", "Samsung", "Galaxy J7 Neo", "Recuperación de pin de carga", ""],
-  ["REP-110", "05/09/2026", "Smartphone", "Motorola", "Moto G32", "Cambio de pantalla", ""],
-  ["REP-111", "05/09/2026", "Smartphone", "Samsung", "Galaxy A12", "Cambio de pantalla", ""],
-  ["REP-112", "07/09/2026", "Smartphone", "Samsung", "Galaxy A24", "Cambio de pin de carga", ""],
-  ["REP-113", "07/09/2026", "Smartphone", "Samsung", "Galaxy S21 FE", "Reparación FPC pantalla y cambio FPC antena", ""],
-  ["REP-114", "07/09/2026", "Smartphone", "Xiaomi", "Redmi 9A", "Cambio de pantalla", ""],
-  ["REP-115", "07/09/2026", "Smartphone", "Xiaomi", "Redmi Note 8", "Flasheo y desbloqueo", ""],
-  ["REP-116", "07/09/2026", "Audio / Auricular", "Xiaomi", "Auricular Réplica Redmi", "Reparación de pin de carga", ""],
-  ["REP-117", "08/09/2026", "Smartphone", "Apple", "iPhone XR", "Cambio de pantalla", ""],
-  ["REP-118", "10/09/2026", "Smartphone", "Xiaomi", "Redmi Note 11", "Cambio de batería", ""],
-  ["REP-119", "10/09/2026", "Smartphone", "Xiaomi", "Redmi 9", "Reparación de conector FPC", "Derlis"],
-  ["REP-120", "14/09/2026", "Smartphone", "Samsung", "Galaxy A14", "Cambio de pantalla", ""],
-  ["REP-121", "14/09/2026", "Smartphone", "Samsung", "Galaxy A21s", "Desbloqueo", ""],
-  ["REP-122", "14/09/2026", "Smartphone", "Samsung", "Galaxy A12", "Cambio de pantalla", ""],
-  ["REP-123", "14/09/2026", "Smartphone", "Samsung", "Galaxy A21s", "Cambio de flex power y volumen", ""],
-  ["REP-124", "14/09/2026", "Smartphone", "Samsung", "Galaxy A20", "Cambio de pantalla", ""],
-  ["REP-125", "14/09/2026", "Smartphone", "Samsung", "Galaxy A02s", "Cambio de pantalla", ""],
-  ["REP-126", "15/09/2026", "Smartphone", "Xiaomi", "Redmi 9", "Cambio de tapa trasera", ""],
-  ["REP-127", "15/09/2026", "Smartphone", "Apple", "iPhone 13 Pro", "Recuperación de fotos", ""],
-  ["REP-128", "16/09/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", ""],
-  ["REP-129", "16/09/2026", "Impresora", "Brother", "HL-1200", "Reparación de impresora", ""],
-  ["REP-130", "18/09/2026", "Smartphone", "Xiaomi", "Redmi 14C", "Cambio de pantalla", ""],
-  ["REP-131", "18/09/2026", "Smartphone", "Tecno", "Spark 2024", "Cambio de pantalla", ""],
-  ["REP-132", "19/09/2026", "Smartphone", "Tecno", "Spark", "Reparación de pin de carga", "Ana"],
-  ["REP-133", "19/09/2026", "Smartphone", "Apple", "iPhone 11", "Retiro de tapa trasera", ""],
-  ["REP-134", "21/09/2026", "Smartphone", "Xiaomi", "Redmi A3", "Cambio de pantalla", ""],
-  ["REP-135", "21/09/2026", "Smartphone", "Apple", "iPhone 15 Pro", "Cambio de pantalla", ""],
-  ["REP-136", "21/09/2026", "Celular Básico", "Nokia", "Nokia 110", "Cambio de pin de carga", ""],
-  ["REP-137", "21/09/2026", "Smartphone", "Xiaomi", "Poco M5", "Cambio de pantalla", ""],
-  ["REP-138", "21/09/2026", "Smartphone", "Xiaomi", "Redmi Note 12", "Reparación de conector FPC", ""],
-  ["REP-139", "21/09/2026", "Smartphone", "Xiaomi", "Redmi 9A", "Reparación de botón power", "Ana"],
-  ["REP-140", "21/09/2026", "Infraestructura", "Genérico", "Instalación eléctrica", "Reparación de parte eléctrica", "Derlis"],
-  ["REP-141", "22/09/2026", "Seguridad / Redes", "HiLook", "Cámara 360", "Adaptación de cable UTP con fuente", ""],
-  ["REP-142", "23/09/2026", "Smartphone", "Xiaomi", "Redmi 9A", "Cambio de pantalla y flasheo", "Ana"],
-  ["REP-143", "23/09/2026", "Smartphone", "Xiaomi", "Redmi Note 11", "Reparación de pin de carga", ""],
-  ["REP-144", "23/09/2026", "Smartphone", "Samsung", "Galaxy A21s", "Cambio de botones y re-pegado de pantalla", ""],
-  ["REP-145", "23/09/2026", "Smartphone", "Apple", "iPhone 15 Pro", "Cambio de pantalla con trasplante de IC", ""],
-  ["REP-146", "23/09/2026", "Smartphone", "Samsung", "Galaxy A04", "Cambio de pantalla y flasheo", "Derlis"],
-  ["REP-147", "23/09/2026", "Smartphone", "Samsung", "Galaxy A21s", "Cambio de pantalla", ""],
-  ["REP-148", "24/09/2026", "Smartphone", "Apple", "Galaxy A14 a iPhone 13 Pro", "Traspaso de datos", ""],
-  ["REP-149", "24/09/2026", "Smartphone", "Xiaomi", "Redmi Note 8 Pro", "Cambio de pantalla", ""],
-  ["REP-150", "24/09/2026", "Multimedia", "Genérico", "3 Dispositivos TV/Móvil", "Instalación de aplicación Flujo", ""],
-  ["REP-151", "24/09/2026", "Smartphone", "Apple", "iPhone 12 Pro", "Cambio de pantalla", ""],
-  ["REP-152", "25/09/2026", "Smartphone", "Xiaomi", "Redmi A5", "Desbloqueo FRP", ""],
-  ["REP-153", "25/09/2026", "Smartphone", "Apple", "iPhone 15 Pro", "Cambio y programación de pantalla", ""],
-  ["REP-154", "25/09/2026", "Smartphone", "Apple", "iPhone 11", "Mantenimiento de pin de carga", ""],
-  ["REP-155", "25/09/2026", "Smartphone", "Xiaomi", "Redmi Note 11", "Reparación de reinicio", ""],
-  ["REP-156", "25/09/2026", "Smartphone", "Xiaomi", "Redmi 14C", "Cambio de pantalla", ""],
-  ["REP-157", "26/09/2026", "Smartphone", "Genérico", "Placa de teléfono", "Recuperación de pistas y resoldado de pin", ""],
-  ["REP-158", "26/09/2026", "Smartphone", "Samsung", "Galaxy S24 Plus", "Mantenimiento de pin de carga", ""],
-  ["REP-159", "28/09/2026", "Celular Básico", "Nokia", "Nokia 110", "Cambio de pin de carga", ""],
-  ["REP-160", "28/09/2026", "Smartphone", "Samsung", "Galaxy A02", "Cambio de pin de carga", ""],
-  ["REP-161", "28/09/2026", "Smartphone", "Samsung", "Galaxy S8", "Cambio de flex de carga", ""],
-  ["REP-162", "28/09/2026", "Smartphone", "Samsung", "Galaxy A02s", "Cambio de pantalla", ""],
-  ["REP-163", "28/09/2026", "Smartphone", "Xiaomi", "Redmi Note 13", "Cambio de pantalla", ""],
-  ["REP-164", "28/09/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pin de carga", "Honorio"],
-  ["REP-165", "28/09/2026", "Smartphone", "Samsung", "Galaxy J6", "Cambio de pin de carga", ""],
-  ["REP-166", "29/09/2026", "Smartphone", "Samsung", "Galaxy A03", "Cambio de pantalla", ""],
-  ["REP-167", "29/09/2026", "Smartphone", "Samsung", "Galaxy S20 FE", "Cambio de pantalla", ""],
-  ["REP-168", "29/09/2026", "Electrónica", "Toyota", "Control de vehículo", "Reparación de control Toyota", ""],
-  ["REP-169", "29/09/2026", "Smartphone", "Samsung", "Galaxy A15", "Cambio de pantalla", "Honorio"],
-  ["REP-170", "29/09/2026", "Smartphone", "Samsung", "Galaxy A55", "Reparación de placa de carga", ""],
-  ["REP-171", "30/09/2026", "Smartphone", "Xiaomi", "Redmi 15C", "Cambio de pantalla", "Derlis"],
-  ["REP-172", "30/09/2026", "PC / Laptop", "Genérico", "Computadora", "Cambio a disco SSD, instalación SO y activación", ""],
-  ["REP-173", "30/09/2026", "Smartphone", "Samsung", "Galaxy A21s", "Cambio de pin y flex de carga", ""],
-  ["REP-174", "01/10/2026", "Smartphone", "Samsung", "Galaxy A21s", "Cambio de pantalla", ""],
-  ["REP-175", "01/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pin de carga", "Ever"],
-  ["REP-176", "01/10/2026", "Smartphone", "Apple", "iPhone 6s", "Cambio de pantalla", "Honorio"],
-  ["REP-177", "01/10/2026", "Smartphone", "Samsung", "Galaxy A15", "Cambio de pantalla", "Honorio"],
-  ["REP-178", "01/10/2026", "Smartphone", "Samsung", "Galaxy A12", "Cambio de pantalla", "Derlis"],
-  ["REP-179", "02/10/2026", "Tablet", "Xiaomi", "Redmi Pad 2", "Flasheo de software", ""],
-  ["REP-180", "02/10/2026", "Smartphone", "Xiaomi", "Galaxy A25 a Redmi 15C", "Traspaso de datos y configuración", ""],
-  ["REP-181", "02/10/2026", "Smartphone", "Samsung", "Galaxy A10", "Reparación de placa de carga, micrófono y power", ""],
-  ["REP-182", "02/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de placa de carga", ""],
-  ["REP-183", "03/10/2026", "Smartphone", "Samsung", "Galaxy A31", "Cambio de pantalla", ""],
-  ["REP-184", "03/10/2026", "Smartphone", "Xiaomi", "Redmi Note 10S", "Cambio de pantalla", ""],
-  ["REP-185", "03/10/2026", "Smartphone", "Xiaomi", "Redmi Note 12 Pro+", "Reparación de reinicio", ""],
-  ["REP-186", "03/10/2026", "Smartphone", "Apple", "iPhone 12", "Cambio de batería", "Honorio"],
-  ["REP-187", "05/10/2026", "Smartphone", "Samsung", "Galaxy A14 5G", "Cambio de pantalla y pin de carga", ""],
-  ["REP-188", "05/10/2026", "Smartphone", "Samsung", "Galaxy A03", "Cambio de pin de carga", ""],
-  ["REP-189", "05/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Reparación de micrófono", ""],
-  ["REP-190", "05/10/2026", "Smartphone", "Samsung", "Galaxy A72", "Reparación de lector SIM", "Nancy"],
-  ["REP-191", "05/10/2026", "Smartphone", "Umidigi", "Umidigi", "Adaptación de batería", ""],
-  ["REP-192", "05/10/2026", "Smartphone", "Samsung", "Galaxy A34", "Cambio de pantalla", ""],
-  ["REP-193", "06/10/2026", "Infraestructura", "Genérico", "Luces LED externas", "Cambio de luces LED", ""],
-  ["REP-194", "06/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pin de carga", "Ana"],
-  ["REP-195", "06/10/2026", "Smartphone", "Apple", "iPhone 15 Pro Max", "Cambio de pantalla con trasplante de IC", ""],
-  ["REP-196", "06/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla y reparación de audio", ""],
-  ["REP-197", "07/10/2026", "Audio / Radio", "Genérico", "Radio portátil", "Reparación de pin de carga y pistas", ""],
-  ["REP-198", "07/10/2026", "Smartphone", "Samsung", "Galaxy A52", "Cambio de pantalla", "Honorio"],
-  ["REP-199", "07/10/2026", "Smartphone", "Samsung", "Galaxy S24 Ultra", "Reparación de cámara", ""],
-  ["REP-200", "07/10/2026", "Smartphone", "Apple", "iPhone 12 Pro", "Cambio de tapa y flex power/volumen", ""],
-  ["REP-201", "09/10/2026", "Smartphone", "Samsung", "Galaxy A72", "Reparación de FPC y cambio de pin de carga", ""],
-  ["REP-202", "09/10/2026", "Smartphone", "Apple", "Galaxy S22 a iPhone 16 Pro Max", "Traspaso de datos", "Anotado como 18 Pro Max"],
-  ["REP-203", "09/10/2026", "Smartphone", "Samsung", "Galaxy A21s", "Cambio de pantalla", ""],
-  ["REP-204", "12/10/2026", "Smartphone", "Samsung", "Galaxy A50", "Cambio de pantalla", ""],
-  ["REP-205", "12/10/2026", "Smartphone", "Samsung", "Galaxy A15", "Ajuste y resoldado de conector FPC", ""],
-  ["REP-206", "13/10/2026", "Smartphone", "Xiaomi", "Redmi 13C", "Cambio de pantalla y placa de carga", ""],
-  ["REP-207", "13/10/2026", "Celular Básico", "Nokia", "Nokia 110", "Reparación de jack de audio 2.5", ""],
-  ["REP-208", "13/10/2026", "Infraestructura", "Genérico", "Luminaria LED", "Colocación de luz LED", ""],
-  ["REP-209", "13/10/2026", "Smartphone", "Samsung", "Galaxy A32", "Cambio de pantalla", ""],
-  ["REP-210", "14/10/2026", "Smartphone", "Samsung", "Galaxy A21s", "Cambio de pantalla", "Honorio"],
-  ["REP-211", "14/10/2026", "Smartphone", "Tecno", "Spark 2023", "Cambio de pantalla", ""],
-  ["REP-212", "14/10/2026", "Smartphone", "Xiaomi", "Redmi Note 11 Pro+", "Cambio de batería", ""],
-  ["REP-213", "14/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", ""],
-  ["REP-214", "14/10/2026", "Smartphone", "Samsung", "Galaxy A54", "Reparación de pin de carga", "Honorio"],
-  ["REP-215", "14/10/2026", "Smartphone", "Apple", "iPhone 12 Pro", "Cambio de pantalla", ""],
-  ["REP-216", "15/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", ""],
-  ["REP-217", "15/10/2026", "Smartphone", "Xiaomi", "Redmi 13C", "Reparación de conector FPC (no cargaba)", "Honorio"],
-  ["REP-218", "15/10/2026", "Smartphone", "Apple", "iPhone 13 a iPhone 16", "Traspaso de datos", ""],
-  ["REP-219", "16/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", "Honorio"],
-  ["REP-220", "16/10/2026", "Smartphone", "Xiaomi", "Redmi Note 8 Pro", "Reparación de botón power y volumen", ""],
-  ["REP-221", "16/10/2026", "Smartphone", "Samsung", "Galaxy A52", "Ajuste de pin de carga y parlante", "Ana"],
-  ["REP-222", "16/10/2026", "Smartphone", "Samsung", "Galaxy A21s", "Cambio de pantalla", ""],
-  ["REP-223", "16/10/2026", "Smartphone", "Samsung", "Galaxy A16", "Cambio de pantalla", ""],
-  ["REP-224", "16/10/2026", "PC / Software", "Genérico", "PC / Laptop", "Actualización de drivers y activación Office 365", ""],
-  ["REP-225", "17/10/2026", "Smartphone", "Honor", "X5b", "Cambio de pantalla", ""],
-  ["REP-226", "17/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", ""],
-  ["REP-227", "17/10/2026", "Smartphone", "Apple", "iPhone 11", "Limpieza de cámara y sellado de pantalla", ""],
-  ["REP-228", "19/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", ""],
-  ["REP-229", "19/10/2026", "Smartphone", "Samsung", "Galaxy A05", "Cambio de pantalla", "Ana"],
-  ["REP-230", "19/10/2026", "Smartphone", "Apple", "iPhone 13", "Cambio de pantalla con IC y tapa trasera", ""],
-  ["REP-231", "19/10/2026", "Smartphone", "Samsung", "Galaxy A32", "Cambio de pantalla", ""],
-  ["REP-232", "19/10/2026", "Smartphone", "Samsung", "Galaxy A21s", "Cambio de pantalla", "Honorio"],
-  ["REP-233", "20/10/2026", "Smartphone", "Samsung", "Galaxy M12", "Cambio de pantalla", ""],
-  ["REP-234", "20/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", "Ever"],
-  ["REP-235", "20/10/2026", "Smartphone", "Apple", "iPhone 12 Pro", "Revisión de pantalla y fallo de apagado", ""],
-  ["REP-236", "21/10/2026", "Smartphone", "Realme", "C65", "Limpieza y mantenimiento general", ""],
-  ["REP-237", "21/10/2026", "Smartphone", "Samsung", "Galaxy A53", "Limpieza y mantenimiento general", ""],
-  ["REP-238", "21/10/2026", "Smartphone", "Samsung", "Galaxy S20 FE", "Cambio de pantalla", "Ana"],
-  ["REP-239", "21/10/2026", "Smartphone", "Xiaomi", "Redmi Note 10", "Cambio de pantalla", ""],
-  ["REP-240", "21/10/2026", "Celular Básico", "Nokia", "Nokia", "Cambio de pin de carga", "Ana"],
-  ["REP-241", "21/10/2026", "Smartphone", "Samsung", "Galaxy A03 Core", "Cambio de pantalla y pin de carga", ""],
-  ["REP-242", "22/10/2026", "Seguridad / Redes", "Genérico", "Red de internet", "Verificación y solución de internet", "Hospital"],
-  ["REP-243", "22/10/2026", "Smartphone", "Apple", "iPhone 13 Pro", "Cambio de housing, pantalla con IC y batería", "Ña Graciela"],
-  ["REP-244", "23/10/2026", "Smartphone", "Xiaomi", "Redmi Note 11", "Cambio de pantalla", "Anotado como 2023"],
-  ["REP-245", "23/10/2026", "Smartphone", "Samsung", "Galaxy A33", "Cambio de pantalla", "Anotado como 2023"],
-  ["REP-246", "23/10/2026", "PC / Software", "Genérico", "PC / Laptop", "Activación de paquete Office", "Anotado como 2023"],
-  ["REP-247", "23/10/2026", "Smartphone", "Samsung", "Galaxy A20s", "Cambio de firmware y desbloqueo", "Anotado como 2023"],
-  ["REP-248", "23/10/2026", "Tablet", "C-Idea", "Tablet C-Idea", "Adaptación de pin de carga", "Anotado como 2023"],
-  ["REP-249", "26/10/2026", "Smartphone", "Apple", "iPhone 13 Pro Max", "Cambio de tapa y batería con reprogramación", ""],
-  ["REP-250", "26/10/2026", "Smartphone", "Samsung", "Galaxy A50", "Reparación de reinicio", ""],
-  ["REP-251", "26/10/2026", "Seguridad / Redes", "Imou", "Cámara IP", "Instalación de cámara en poste", ""],
-  ["REP-252", "27/10/2026", "Smartphone", "Samsung", "Galaxy A20s", "Cambio de pantalla", ""],
-  ["REP-253", "27/10/2026", "Audio / Parlante", "JBL", "Charge 5", "Cambio de placa de carga", ""],
-  ["REP-254", "27/10/2026", "Smartphone", "Apple", "iPhone 11", "Cambio de pantalla", ""],
-  ["REP-255", "28/10/2026", "Tablet", "Amazon", "Fire", "Cambio de pin de carga", ""],
-  ["REP-256", "28/10/2026", "Audio / Parlante", "JBL", "Grip", "Reparación de puerto de carga", ""],
-  ["REP-257", "29/10/2026", "Smartphone", "Samsung", "Galaxy A04e", "Cambio de batería y placa de carga", ""],
-  ["REP-258", "29/10/2026", "Smartphone", "Samsung", "Galaxy A03s", "Cambio de pantalla", ""],
-  ["REP-259", "29/10/2026", "Smartphone", "Samsung", "Galaxy A03s", "Cambio de pantalla y desbloqueo", "Derlis"],
-  ["REP-260", "29/10/2026", "Smartphone", "Samsung", "Galaxy A30s", "Cambio de housing y solución de audio", ""],
-  ["REP-261", "30/10/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", ""],
-  ["REP-262", "30/10/2026", "Smartphone", "Samsung", "Galaxy A04e", "Cambio de pantalla", ""],
-  ["REP-263", "30/10/2026", "Smartphone", "Samsung", "Galaxy A26", "Flasheo de software", ""],
-  ["REP-264", "30/10/2026", "Smartphone", "Xiaomi", "Redmi Note 12S", "Cambio de batería", "Ana"],
-  ["REP-265", "30/10/2026", "Audio / Parlante", "JBL", "Charge 3", "Cambio de batería", ""],
-  ["REP-266", "30/10/2026", "Smartphone", "Motorola", "Moto E7i", "Cambio de pin de carga", ""],
-  ["REP-267", "30/10/2026", "Smartphone", "Samsung", "Galaxy A30s", "Cambio de pin de carga", ""],
-  ["REP-268", "30/10/2026", "Smartphone", "Realme", "8i", "Solución a apagado de pantalla", "Derlis"],
-  ["REP-269", "31/10/2026", "Smartphone", "Samsung", "Galaxy A15", "Cambio de pantalla", "Honorio"],
-  ["REP-270", "31/10/2026", "Smartphone", "Xiaomi", "Redmi Note 9", "Solución a reinicio, audio y cambio flex carga", ""],
-  ["REP-271", "31/10/2026", "Smartphone", "Samsung", "Galaxy S21 FE", "Solución a carga y señal", ""],
-  ["REP-272", "31/10/2026", "Smartphone", "Honor", "X7b", "Cambio de pantalla y pin de carga", ""],
-  ["REP-273", "31/10/2026", "Smartphone", "Samsung", "Galaxy A31", "Cambio de pin de carga y botón power", ""],
-  ["REP-274", "31/10/2026", "Smartphone", "Samsung", "Galaxy A50", "Cambio de pantalla y reparación de IC de carga", ""],
-  ["REP-275", "31/10/2026", "Smartphone", "Samsung", "Galaxy S21 FE", "Cambio de batería y reparación de carga húmeda", ""],
-  ["REP-276", "04/11/2026", "Smartphone", "Realme", "C11", "Cambio de pantalla", ""],
-  ["REP-277", "04/11/2026", "Smartphone", "Samsung", "Galaxy A03", "Cambio de pantalla", ""],
-  ["REP-278", "05/11/2026", "Smartphone", "Motorola", "Moto G15", "Cambio de pantalla", ""],
-  ["REP-279", "05/11/2026", "Smartphone", "TCL", "605", "Limpieza por humedad, resoldado y pantalla", ""],
-  ["REP-280", "05/11/2026", "Smartphone", "Xiaomi", "Redmi Note 11", "Cambio de pantalla y desbloqueo FRP", "Derlis"],
-  ["REP-281", "05/11/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla y desbloqueo FRP", "A13"],
-  ["REP-282", "06/11/2026", "Smartphone", "Samsung", "Galaxy A23", "Cambio de pantalla", ""],
-  ["REP-283", "07/11/2026", "Smartphone", "Samsung", "Galaxy A03 Core", "Cambio de pantalla, visor de cámara y FRP", "Derlis"],
-  ["REP-284", "07/11/2026", "Smartphone", "Samsung", "Huawei Y9 2019 a Galaxy A03s", "Traspaso de datos", ""],
-  ["REP-285", "07/11/2026", "Smartphone", "Samsung", "Galaxy A13", "Cambio de pantalla", ""],
-  ["REP-286", "07/11/2026", "Smartphone", "Huawei", "Y9 2019", "Cambio de pantalla y flasheo", "Derlis"],
-  ["REP-287", "07/11/2026", "Smartphone", "Samsung", "Galaxy A52", "Ajuste de conector FPC", ""]
+// REGISTROS HISTÓRICOS DE RESPALDO
+const DATOS_MAESTROS = [
+  { id: "SER-001", fecha: "10/03/2026", categoria: "Impresora", marca: "HP", modelo: "Impresora HP + PC", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento de impresora HP y revisión de PC", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-002", fecha: "10/03/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Diseño", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de CorelDRAW 2025, Photoshop, AutoCAD y Canva", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Suite gráfica completa" },
+  { id: "SER-003", fecha: "10/03/2026", categoria: "Electrónica / Línea Blanca / Periférico", marca: "Silhouette", modelo: "Cameo + Sublimadoras", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento preventivo de plotter Cameo y máquinas de sublimación", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-004", fecha: "10/03/2026", categoria: "Audio / Consola / Portátil", marca: "JBL", modelo: "JBL GO", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Revisión y servicio técnico de parlante portátil JBL GO", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-005", fecha: "11/03/2026", categoria: "Impresora", marca: "Brother", modelo: "Serie HL", intervencion: "Reemplazo de Repuesto / Hardware + Mantenimiento Físico / Limpieza", trabajo: "Limpieza interna e instalación de unidad de imagen (Drum) y tóner", repuestos: "Drum y Tóner", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-006", fecha: "12/03/2026", categoria: "Smart TV / Monitor", marca: "Amazon", modelo: "Fire TV Stick (x3 unidades)", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación y configuración de aplicación Flujo en 3 TV Stick", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-007", fecha: "12/03/2026", categoria: "Notebook / Laptop", marca: "Genérico", modelo: "PC / Laptop", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación y activación de AutoCAD", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-008", fecha: "13/03/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3150", intervencion: "Mantenimiento Físico / Limpieza + Reset de Software / Contadores", trabajo: "Mantenimiento completo y reset de contador de almohadillas", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-009", fecha: "13/03/2026", categoria: "Impresora", marca: "Brother", modelo: "Impresora Brother", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Reparación de mecanismo de arrastre (no estiraba hojas)", repuestos: "Ninguno", precio: "40.000 Gs", estado: "Entregado", notas: "Francisco" },
+  { id: "SER-010", fecha: "14/03/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3210", intervencion: "Instalación / Conectividad / Redes", trabajo: "Inicialización de impresora y descarga/instalación de drivers", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-011", fecha: "29/09/2026", categoria: "Impresora", marca: "Genérico", modelo: "Impresora de Oficina", intervencion: "Instalación / Conectividad / Redes", trabajo: "Entrega, instalación física de impresora y servicio técnico", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-012", fecha: "30/09/2026", categoria: "Smart TV / Monitor", marca: "Genérico", modelo: "Smart TV / Box", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación y configuración de aplicación Xuper TV", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-013", fecha: "01/10/2026", categoria: "Smartphone", marca: "Apple", modelo: "Samsung a iPhone 16 Pro Max", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Traspaso completo de fotografías de Samsung a iPhone", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Anotado como iPhone 18" },
+  { id: "SER-014", fecha: "06/10/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3110", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware + Reset de Software / Contadores", trabajo: "Reset de software, cambio de almohadillas y mantenimiento general", repuestos: "Almohadillas absorbentes", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-015", fecha: "07/10/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3110", intervencion: "Reemplazo de Repuesto / Hardware + Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento completo y cambio de encoder circular", repuestos: "Encoder circular", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-016", fecha: "07/10/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Mantenimiento Físico / Limpieza + Software / Sistema Operativo / Backup", trabajo: "Mantenimiento completo preventivo de hardware y optimización de software", repuestos: "Pasta térmica", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-017", fecha: "07/10/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Óptico CD", intervencion: "Software / Sistema Operativo / Backup + Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Extracción e impresión de estudios de radiografía desde CD", repuestos: "Papel / Impresión", precio: "", estado: "Entregado", notas: "Cliente Sr." },
+  { id: "SER-018", fecha: "07/10/2026", categoria: "Notebook / Laptop", marca: "Asus", modelo: "Laptop Asus", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Ajuste estructural de pantalla y reconexión de flex de cámara web", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-019", fecha: "08/10/2026", categoria: "Impresora", marca: "Genérico", modelo: "Impresora Térmica", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Revisión técnica y diagnóstico de impresora térmica", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-020", fecha: "08/10/2026", categoria: "Smart TV / Monitor", marca: "Genérico", modelo: "TV Box", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación y configuración de plataforma Flujo en TV Box", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-021", fecha: "08/10/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP Negro", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho de tinta color negro", repuestos: "Tinta negra", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-022", fecha: "08/10/2026", categoria: "Impresora", marca: "Genérico", modelo: "Sistema Continuo", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de tanques de tinta de impresora", repuestos: "Tinta", precio: "", estado: "Entregado", notas: "Cliente: Troche" },
+  { id: "SER-023", fecha: "09/10/2026", categoria: "Impresora", marca: "Genérico", modelo: "Impresora Sublimación", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Limpieza de cabezal desde software (sistema con tinta de sublimación)", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-024", fecha: "09/10/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Duro", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Extracción y recuperación de archivos de disco", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-025", fecha: "10/10/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3210", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento completo con purgado de dampers y limpieza de cabezal", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-026", fecha: "13/10/2026", categoria: "Notebook / Laptop", marca: "Acer", modelo: "Laptop Acer", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Reparación y reconstrucción de bisagra de pantalla", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-027", fecha: "14/10/2026", categoria: "Notebook / Laptop", marca: "Genérico", modelo: "Laptop #1", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de programas de ofimática, drivers y configuración general", repuestos: "Ninguno", precio: "50.000 Gs", estado: "Entregado", notas: "Pack 2 laptops" },
+  { id: "SER-028", fecha: "14/10/2026", categoria: "Notebook / Laptop", marca: "Genérico", modelo: "Laptop #2", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Instalación de programas de ofimática, drivers y configuración general", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Pack 2 laptops" },
+  { id: "SER-029", fecha: "14/10/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP Negro", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho de tinta negra", repuestos: "Tinta negra", precio: "10.000 Gs", estado: "Entregado", notas: "" },
+  { id: "SER-030", fecha: "15/10/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3250", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Mantenimiento completo con limpieza de cabezal por fallo de color negro", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-031", fecha: "16/10/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho de tinta", repuestos: "Tinta", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-032", fecha: "16/10/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Mantenimiento Físico / Limpieza + Software / Sistema Operativo / Backup", trabajo: "Mantenimiento completo y activación de licencia de Office", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-033", fecha: "16/10/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Reemplazo de Repuesto / Hardware + Software / Sistema Operativo / Backup", trabajo: "Instalación de unidad SSD, sistema operativo y programas de ofimática", repuestos: "Disco SSD", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-034", fecha: "17/10/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Reemplazo de Repuesto / Hardware + Software / Sistema Operativo / Backup", trabajo: "Ampliación de memoria RAM + SSD, sistema operativo y ofimática", repuestos: "Memoria RAM + SSD", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-035", fecha: "18/10/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC de Oficina", intervencion: "Instalación / Conectividad / Redes", trabajo: "Servicio técnico y soporte en oficina de contaduría", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Cliente: Contaduría" },
+  { id: "SER-036", fecha: "24/10/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L380", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware", trabajo: "Mantenimiento completo con cambio de almohadillas", repuestos: "Almohadillas", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-037", fecha: "27/10/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho HP", repuestos: "Tinta", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-038", fecha: "28/10/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Reemplazo de Repuesto / Hardware + Software / Sistema Operativo / Backup", trabajo: "Instalación de disco SSD con sistema operativo nuevo", repuestos: "Disco SSD", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-039", fecha: "28/10/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP Negro", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho negro HP", repuestos: "Tinta negra", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-040", fecha: "29/10/2026", categoria: "Electrónica / Línea Blanca / Periférico", marca: "Genérico", modelo: "Jarra Térmica", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Revisión y reparación eléctrica de jarra térmica", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Cliente: Fígaro" },
+  { id: "SER-041", fecha: "29/10/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Duro HDD", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Revisión de estado y diagnóstico de disco HDD", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-042", fecha: "29/10/2026", categoria: "PC Escritorio / Servidor", marca: "Genérico", modelo: "PC Gamer / Escritorio", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Reensamblaje y corrección de cableado de PC mal armada", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-043", fecha: "29/10/2026", categoria: "Microelectrónica / Componente", marca: "Genérico", modelo: "Placa Madre Socket CPU", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Diagnóstico de placa que no encendía y enderezado de pines doblados en socket", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-044", fecha: "30/10/2026", categoria: "Audio / Consola / Portátil", marca: "Amazfit", modelo: "Smartwatch Amazfit", intervencion: "Instalación / Conectividad / Redes", trabajo: "Vinculación y configuración de reloj inteligente con smartphone", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-045", fecha: "30/10/2026", categoria: "Impresiones / Corte Plotter / Trabajos Prácticos", marca: "Genérico", modelo: "Servicio de Impresión", intervencion: "Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Impresión de lote de 80 imágenes", repuestos: "Papel y Tinta", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-046", fecha: "31/10/2026", categoria: "Electrónica / Línea Blanca / Periférico", marca: "Genérico", modelo: "Rastreador GPS", intervencion: "Instalación / Conectividad / Redes", trabajo: "Configuración y puesta en marcha de dispositivo GPS", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-047", fecha: "02/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3250", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Limpieza de cabezal por falta de inyección en color amarillo", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-048", fecha: "02/11/2026", categoria: "Smartphone", marca: "Samsung", modelo: "Samsung a Samsung", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Transferencia completa de datos entre teléfonos Samsung", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-049", fecha: "02/11/2026", categoria: "Smartphone", marca: "Xiaomi", modelo: "Redmi a Redmi", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Transferencia completa de datos entre teléfonos Redmi", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-050", fecha: "02/11/2026", categoria: "Smartphone", marca: "Genérico", modelo: "Smartphone Android", intervencion: "Desbloqueo / FRP / Firmware", trabajo: "Configuración inicial de teléfono y recuperación de cuentas", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Cliente Sr." },
+  { id: "SER-051", fecha: "02/11/2026", categoria: "Smartphone", marca: "Honor", modelo: "Honor a Honor", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Transferencia completa de todos los datos de Honor a Honor", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-052", fecha: "02/11/2026", categoria: "PC Escritorio / Servidor", marca: "Dell", modelo: "PC Dell", intervencion: "Reemplazo de Repuesto / Hardware + Software / Sistema Operativo / Backup", trabajo: "Cambio de disco, instalación de sistema operativo y paquete Office", repuestos: "Disco SSD", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-053", fecha: "03/11/2026", categoria: "Audio / Consola / Portátil", marca: "JBL", modelo: "Parlante JBL", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Actualización de firmware de parlante JBL", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-054", fecha: "04/11/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Duro HDD", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Extracción y respaldo de datos de disco duro HDD", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-055", fecha: "05/11/2026", categoria: "Notebook / Laptop", marca: "Acer", modelo: "Laptop Acer", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Diagnóstico y reparación de laptop Acer que no encendía", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Cliente: Adalberto" },
+  { id: "SER-056", fecha: "06/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L380", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware + Reset de Software / Contadores", trabajo: "Limpieza completa, reset de contador y cambio de almohadillas", repuestos: "Almohadillas", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-057", fecha: "06/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3110", intervencion: "Reemplazo de Repuesto / Hardware + Mantenimiento Físico / Limpieza", trabajo: "Cambio de cabezal de impresión, cable flex y limpieza general", repuestos: "Cabezal y Flex", precio: "", estado: "Entregado", notas: "Cliente: Adalberto" },
+  { id: "SER-058", fecha: "07/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de batería interna de laptop HP", repuestos: "Batería HP", precio: "", estado: "Entregado", notas: "" },
+  { id: "SER-059", fecha: "09/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "HP 250 G5", intervencion: "Reemplazo de Repuesto / Hardware", trabajo: "Cambio de Teclado", repuestos: "Teclado en Ingles para HP 250 G5", precio: "", estado: "Entregado", notas: "Laptop del Local" },
+  { id: "SER-060", fecha: "10/11/2026", categoria: "Impresora", marca: "HP", modelo: "Cartucho HP 664", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Recarga de cartucho de tinta negra", repuestos: "Tinta color Negro", precio: "15.000 Gs", estado: "Entregado", notas: "" },
+  { id: "SER-061", fecha: "10/11/2026", categoria: "Impresiones / Corte Plotter / Trabajos Prácticos", marca: "Genérico", modelo: "Documento Word", intervencion: "Impresión / Corte Plotter / Trabajo Práctico", trabajo: "Digitalización y escaneo de documentos a formato PDF / imagen", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "-" },
+  { id: "SER-078", fecha: "09/11/2026", categoria: "Smartphone", marca: "Honor", modelo: "Honor a Honor", intervencion: "Mantenimiento Físico / Limpieza", trabajo: "Pasar todos los datos de teléfono honor a honor", repuestos: "Ninguno", precio: "", estado: "Entregado", notas: "Teléfono honor a honor" },
+  { id: "SER-079", fecha: "09/11/2026", categoria: "PC Escritorio / Servidor", marca: "Dell", modelo: "PC Dell", intervencion: "Reemplazo de Repuesto / Hardware + Software / Sistema Operativo / Backup", trabajo: "Cambiar disco e instalar sistema con office a PC Dell", repuestos: "Disco SSD", precio: "", estado: "Entregado", notas: "-" },
+  { id: "SER-080", fecha: "10/11/2026", categoria: "Audio / Consola / Portátil", marca: "JBL", modelo: "Parlante JBL", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Actualizar JBL", repuestos: "Ninguno", precio: "20.000 Gs", estado: "Entregado", notas: "-" },
+  { id: "SER-081", fecha: "11/11/2026", categoria: "Almacenamiento", marca: "Genérico", modelo: "Disco Duro HDD", intervencion: "Software / Sistema Operativo / Backup", trabajo: "Sacar datos de disco HDD", repuestos: "Ninguno", precio: "10.000 Gs", estado: "Entregado", notas: "Disco HDD" },
+  { id: "SER-082", fecha: "12/11/2026", categoria: "Notebook / Laptop", marca: "Acer", modelo: "Laptop Acer", intervencion: "Microelectrónica / Reparación de Placa", trabajo: "Laptop acer no encendía de Adalberto", repuestos: "Ninguno", precio: "30.000 Gs", estado: "Entregado", notas: "Adalberto" },
+  { id: "SER-083", fecha: "13/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L380", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware + Reset de Software / Contadores", trabajo: "Impresora Epson l380 limpieza completo y reset de almohadilla con cambio", repuestos: "Almohadillas", precio: "70.000 Gs", estado: "Entregado", notas: "Almohadilla con cambio" },
+  { id: "SER-084", fecha: "13/11/2026", categoria: "Impresora", marca: "Epson", modelo: "EcoTank L3110", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware", trabajo: "Epson l3110 cambio de cabezal y Flex con limpieza de Adalberto", repuestos: "Cabezal + Cable Flex", precio: "100.000 Gs", estado: "Entregado", notas: "Adalberto" },
+  { id: "SER-085", fecha: "14/11/2026", categoria: "Notebook / Laptop", marca: "HP", modelo: "Laptop HP", intervencion: "Mantenimiento Físico / Limpieza + Reemplazo de Repuesto / Hardware", trabajo: "Laptop HP cambio de batería con mantenimiento completo", repuestos: "Batería", precio: "80.000 Gs", estado: "Entregado", notas: "-" }
 ];
-
-// Nombres y clientes habituales en Paraguay / taller para detección sin separador
-const CLIENTES_BASE_CONOCIDOS = [
-  "ña graciela", "ña maria", "ña maría", "ña rosa", "ña marta", "ña carmen", "ña blasida",
-  "don carlos", "don juan", "don pedro", "don jose", "don josé", "don ramon", "don ramón",
-  "don julio", "don jorge", "don miguel", "don luis", "don victor", "don víctor", "don roberto",
-  "derlis", "ana", "honorio", "ever", "nancy", "graciela", "adalberto", "francisco", "troche",
-  "contaduría", "contaduria", "hospital", "fígaro", "figaro", "junior", "ángel", "angel",
-  "juan", "carlos", "pedro", "lucas", "marcos", "luis", "josé", "jose", "maría", "maria",
-  "jorge", "miguel", "diego", "ramón", "ramon", "julio", "césar", "cesar", "oscar", "óscar",
-  "víctor", "victor", "rubén", "ruben", "javier", "fernando", "alberto", "rodrigo", "cristian",
-  "cristhian", "christian", "sergio", "pablo", "raúl", "raul", "hugo", "néstor", "nestor",
-  "héctor", "hector", "gustavo", "richard", "edgar", "nelson", "camilo", "esteban", "fabián",
-  "fabian", "iván", "ivan", "matías", "matias", "nicolás", "nicolas", "sebastián", "sebastian",
-  "tomás", "tomas", "gabriel", "daniel", "david", "andrés", "andres", "antonio", "manuel",
-  "mario", "roberto", "eduardo", "ricardo", "alejandro", "ariel", "axel", "braian", "bryan",
-  "kevin", "jonathan", "alex", "elías", "elias", "walter", "wilson", "marcelo", "claudio",
-  "roque", "blas", "arnaldo", "alcides", "eligio", "eusebio", "fidel", "hilario", "isidro",
-  "lorenzo", "lucio", "marcial", "osvaldo", "patricio", "reinaldo", "rogelio", "silvio",
-  "rosa", "carmen", "laura", "sara", "claudia", "patricia", "mónica", "monica", "silvia",
-  "verónica", "veronica", "carolina", "gabriela", "andrea", "natalia", "paola", "liz",
-  "fátima", "fatima", "mirian", "miriam", "lourdes", "sonia", "gloria", "norma", "marta",
-  "martha", "elena", "ester", "esther", "raquel", "rebeca", "ruth", "eva", "olga", "blanca",
-  "zully", "celeste", "belén", "belen", "camila", "sofía", "sofia", "valentina", "romina",
-  "tamara", "vanesa", "vanessa", "jessica", "yesica", "yessica", "cintia", "cynthia", "diana",
-  "elizabeth", "karina", "liliana", "lorena", "marisol", "mercedes", "nadia", "noelia",
-  "pamela", "rocío", "rocio", "sandra", "susana", "teresa", "viviana", "yanina", "zulma",
-  "milagros", "daisy", "deisy", "leticia", "carmen", "mirta", "mirtha", "alicia", "beatriz",
-  "cecilia", "clara", "doris", "edith", "estela", "evelyn", "florencia", "gladys", "hilda",
-  "irene", "isabel", "jessica", "julia", "karen", "karla", "leidy", "lidia", "lilian",
-  "lucia", "lucía", "magali", "magalí", "marcela", "margarita", "mariela", "marina",
-  "marlene", "melissa", "miguelina", "milena", "nadia", "nelida", "nélida", "nidia", "noemi",
-  "noemí", "nora", "patricia", "paula", "perla", "ramona", "reina", "rosana", "roxana",
-  "selva", "stella", "tania", "tatiana", "valeria", "victoria", "virginia", "yeni", "yenny"
-];
-
-const PALABRAS_NO_CLIENTE = new Set([
-  "pantalla", "bateria", "batería", "carga", "pin", "cabezal", "almohadilla", "almohadillas",
-  "flex", "disco", "sistema", "office", "amarillo", "negro", "color", "software", "telefono",
-  "teléfono", "placa", "camara", "cámara", "datos", "modulo", "módulo", "tactil", "táctil",
-  "boton", "botón", "botones", "power", "volumen", "tapa", "housing", "carcasa", "fpc", "ic",
-  "pistas", "reinicio", "sensor", "microfono", "micrófono", "audio", "parlante", "speaker",
-  "señal", "senal", "humedad", "limpieza", "mantenimiento", "desbloqueo", "frp", "flasheo",
-  "firmware", "traspaso", "recuperacion", "recuperación", "archivos", "fotos", "wifi",
-  "internet", "utp", "ethernet", "led", "electrica", "eléctrica", "cartucho", "tinta",
-  "rodillo", "fusor", "engranajes", "bisagra", "bisagras", "teclado", "ssd", "hdd", "ram",
-  "windows", "drivers", "antena", "visor", "sellado", "original", "oled", "incell", "generico",
-  "genérico", "nuevo", "usado", "roto", "quebrado", "mojado", "cargaba", "encendia", "encendía",
-  "prende", "corto", "completo", "general", "preventivo", "express", "delivery", "accesorio",
-  "estuche", "antiquiebre", "vidrio", "templado", "iphone", "samsung", "xiaomi", "redmi",
-  "poco", "motorola", "moto", "honor", "realme", "huawei", "tecno", "nokia", "tcl", "jbl",
-  "epson", "hp", "brother", "acer", "asus", "dell", "lenovo", "galaxy", "tablet", "laptop",
-  "notebook", "impresora", "pc", "celular", "smartphone", "android", "5g", "4g", "pro",
-  "plus", "max", "ultra", "lite", "core", "mini", "fe", "neo", "play", "prime", "unidades",
-  "unidad", "metros", "cable", "ficha", "fuente", "poste", "vehiculo", "vehículo", "toyota",
-  "control", "radio", "portatil", "portátil", "auricular", "jack", "sim", "lector", "trackpad",
-  "huella", "trasera", "frontal", "verde", "blanca", "negra", "azul", "roja", "reprogramacion",
-  "reprogramación", "trasplante", "resoldado", "adaptacion", "adaptación", "configuracion",
-  "configuración", "instalacion", "instalación", "activacion", "activación", "optimizacion",
-  "optimización", "reparacion", "reparación", "cambio", "ajuste", "repegado", "re-pegado",
-  "retiro", "colocacion", "colocación", "solucion", "solución", "verificacion", "verificación",
-  "revision", "revisión", "diagnostico", "diagnóstico", "apagado", "fallo", "coaxial",
-  "firma", "digital", "parte", "tomacorriente", "humeda", "húmeda", "sin", "no", "con",
-  "encendido", "imagen", "sonido", "tinta", "recarga", "reset", "contador", "contadores",
-  "puerto", "linea", "línea", "conector", "chip", "cuenta", "cuentas", "google", "icloud",
-  "backup", "respaldo", "formateo", "formatear", "pulgadas", "externas", "luminaria",
-  "en", "dn", "tecnologia", "tecnología", "anotado", "como", "local", "taller"
-]);
 
 let servicios = [];
 let ultimosFiltrados = [];
 let loteTemporal = [];
+let bovedaDesbloqueada = false;
 let timerBusqueda = null;
 let ultimoAnchoMovil = window.innerWidth < 768;
 
 // ============================================================================
-// UTILIDADES DE SEGURIDAD HTML, MODALES E ÍCONOS
+// UTILIDADES DE MODALES Y ICONOS
 // ============================================================================
-function escapeHtml(str) {
-  return String(str ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 function mostrarModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -422,18 +130,194 @@ function inicializarIconos() {
 }
 
 // ============================================================================
-// UTILIDADES DE FECHAS, PRECIOS (GS) Y CLIENTES
+// CONEXIÓN REAL A SUPABASE
+// ============================================================================
+function empaquetarParaSupabase(reg) {
+  return {
+    id: String(reg.id).toUpperCase(),
+    fecha: normalizarFecha(reg.fecha),
+    tecnico: reg.tecnico || TECNICO_NOMBRE,
+    categoria: reg.categoria,
+    marca: reg.marca,
+    modelo: reg.modelo,
+    intervencion: reg.intervencion,
+    trabajo: reg.trabajo,
+    repuestos: reg.repuestos || "Ninguno",
+    precio: formatearGuaranies(reg.precio) || "",
+    estado: reg.estado || "Entregado",
+    notas: reg.notas || "-"
+  };
+}
+
+function actualizarBadgeSupabase(estado, textoPersonalizado = "") {
+  const b = document.getElementById("cloud-badge");
+  if (!b) return;
+  if (estado === "ok") {
+    b.textContent = textoPersonalizado || "Supabase Conectado (SQL)";
+    b.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600 font-bold tracking-wide";
+  } else if (estado === "warn") {
+    b.textContent = textoPersonalizado || "Supabase Listo (Falta Migrar)";
+    b.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-500 font-bold tracking-wide";
+  } else {
+    b.textContent = textoPersonalizado || "Modo Local (Sin red)";
+    b.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-600 font-bold tracking-wide";
+  }
+}
+
+async function guardarServicioSupabase(reg) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?on_conflict=id`, {
+      method: "POST",
+      headers: HEADERS_POST,
+      body: JSON.stringify(empaquetarParaSupabase(reg))
+    });
+    if (!res.ok) {
+      const errTxt = await res.text();
+      console.error("Error Supabase al guardar:", res.status, errTxt);
+      actualizarBadgeSupabase("error", `Error Guardar (${res.status})`);
+      return false;
+    }
+    actualizarBadgeSupabase("ok");
+    return true;
+  } catch (e) {
+    console.error("Error de red al guardar:", e);
+    actualizarBadgeSupabase("error");
+    return false;
+  }
+}
+
+async function guardarLoteSupabase(loteCrudo) {
+  try {
+    const payload = loteCrudo.map(empaquetarParaSupabase);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?on_conflict=id`, {
+      method: "POST",
+      headers: HEADERS_POST,
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const errTxt = await res.text();
+      console.error("Error Supabase lote:", res.status, errTxt);
+      return false;
+    }
+    actualizarBadgeSupabase("ok");
+    return true;
+  } catch (e) {
+    console.error("Error de red lote:", e);
+    return false;
+  }
+}
+
+async function eliminarServicioSupabase(id) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?id=eq.${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: HEADERS_GET
+    });
+    if (!res.ok) {
+      console.error("Error Supabase al eliminar:", res.status, await res.text());
+    }
+  } catch (e) {
+    console.error("Error de red al eliminar:", e);
+  }
+}
+
+window.migrarBaseASupabase = async function () {
+  const btn = document.getElementById("btn-subir-drive");
+  if (btn) {
+    btn.textContent = "Subiendo a Supabase...";
+    btn.disabled = true;
+  }
+  try {
+    const payload = servicios.map(empaquetarParaSupabase);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?on_conflict=id`, {
+      method: "POST",
+      headers: HEADERS_POST,
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      actualizarBadgeSupabase("ok");
+      alert(`¡Éxito! Se subieron ${servicios.length} servicios y todos tus precios a Supabase.`);
+      ocultarModal("modal-drive");
+    } else {
+      const detalle = await res.text();
+      alert(`Supabase devolvió error ${res.status}:\n${detalle}`);
+    }
+  } catch (e) {
+    alert(`Error de conexión al migrar: ${e.message}`);
+  } finally {
+    if (btn) {
+      btn.innerHTML = `<i data-lucide="upload-cloud" class="w-4 h-4"></i> Migrar Base Local a Supabase`;
+      btn.disabled = false;
+      inicializarIconos();
+    }
+  }
+};
+
+async function cargarBaseDeDatos() {
+  // 1. Mostrar datos locales o maestros de inmediato (nunca quedar en 0)
+  let cargadoLocal = false;
+  const cache = localStorage.getItem(CACHE_LOCAL_KEY);
+  if (cache) {
+    try {
+      const parsed = JSON.parse(cache);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        servicios = ordenarPorFechaYNumero(normalizarRegistros(parsed));
+        cargadoLocal = true;
+      }
+    } catch (e) {}
+  }
+  if (!cargadoLocal) {
+    servicios = ordenarPorFechaYNumero(normalizarRegistros([...DATOS_MAESTROS]));
+  }
+
+  poblarSelectores();
+  aplicarFiltros();
+  if (bovedaDesbloqueada) renderizarPanelIngresos();
+
+  // 2. Sincronizar con Supabase en tiempo real
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?select=*`, {
+      method: "GET",
+      headers: HEADERS_GET
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const soloAngel = Array.isArray(data)
+        ? data.filter((r) => String(r.id || "").toUpperCase().startsWith("SER-"))
+        : [];
+
+      if (soloAngel.length > 0) {
+        servicios = ordenarPorFechaYNumero(normalizarRegistros(soloAngel));
+        localStorage.setItem(CACHE_LOCAL_KEY, JSON.stringify(servicios));
+        poblarSelectores();
+        aplicarFiltros();
+        if (bovedaDesbloqueada) renderizarPanelIngresos();
+        actualizarBadgeSupabase("ok");
+      } else {
+        // Conectado a Supabase, pero la tabla todavía está vacía esperando migración
+        actualizarBadgeSupabase("warn", "Supabase Conectado (Presiona Migrar)");
+      }
+    } else {
+      const errTxt = await res.text();
+      console.error("Supabase GET error:", res.status, errTxt);
+      actualizarBadgeSupabase("error", `Error Supabase (${res.status})`);
+    }
+  } catch (e) {
+    console.warn("Sin conexión a Supabase, usando copia local:", e);
+    actualizarBadgeSupabase("error");
+  }
+}
+
+// ============================================================================
+// UTILIDADES DE TEXTO, FECHAS Y PRECIOS
 // ============================================================================
 function limpiarParaBusqueda(valor) {
   return String(valor ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
 function limpiarTextoComparacion(str) {
-  return String(str || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
+  return String(str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
 
 function normalizarFecha(f) {
@@ -456,11 +340,11 @@ function normalizarFecha(f) {
   return str;
 }
 
-function formatearFechaInput(yyyy_mm_dd) {
-  if (!yyyy_mm_dd) return "";
-  const partes = String(yyyy_mm_dd).split("-");
+function formatearFechaInput(fechaYYYYMMDD) {
+  if (!fechaYYYYMMDD) return "";
+  const partes = String(fechaYYYYMMDD).split("-");
   if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  return normalizarFecha(yyyy_mm_dd);
+  return normalizarFecha(fechaYYYYMMDD);
 }
 
 function convertirFechaAYYYYMMDD(fechaDDMMYYYY) {
@@ -475,18 +359,6 @@ function convertirFechaATimestamp(fechaDDMMYYYY) {
   return new Date(Number(partes[2]), Number(partes[1]) - 1, Number(partes[0])).getTime() || 0;
 }
 
-function obtenerDiaSemana(fechaDDMMYYYY) {
-  if (!fechaDDMMYYYY) return "";
-  const partes = String(fechaDDMMYYYY).trim().split("/");
-  if (partes.length !== 3) return "";
-  const [dd, mm, yyyy] = partes.map(Number);
-  if (!dd || !mm || !yyyy) return "";
-  const fechaObj = new Date(yyyy, mm - 1, dd);
-  if (isNaN(fechaObj.getTime())) return "";
-  const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-  return dias[fechaObj.getDay()];
-}
-
 function obtenerLunesActualYYYYMMDD() {
   const hoy = new Date();
   const dia = hoy.getDay();
@@ -498,314 +370,117 @@ function obtenerLunesActualYYYYMMDD() {
   return `${y}-${m}-${d}`;
 }
 
-function sumarDiasAFecha(yyyy_mm_dd, dias) {
-  const [y, m, d] = yyyy_mm_dd.split("-").map(Number);
-  const fecha = new Date(y, m - 1, d + dias);
-  const dd = String(fecha.getDate()).padStart(2, "0");
-  const mm = String(fecha.getMonth() + 1).padStart(2, "0");
-  const yyyy = fecha.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
+function obtenerDiaSemana(fechaDDMMYYYY) {
+  const partes = String(fechaDDMMYYYY || "").trim().split("/");
+  if (partes.length !== 3) return "";
+  const fechaObj = new Date(Number(partes[2]), Number(partes[1]) - 1, Number(partes[0]));
+  if (isNaN(fechaObj.getTime())) return "";
+  const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  return dias[fechaObj.getDay()];
 }
 
-function normalizarFechaNumericaCorta(strFecha, anioBase) {
-  const partes = strFecha.replace(/-/g, "/").split("/");
-  const dd = String(partes[0]).padStart(2, "0");
-  const mm = String(partes[1]).padStart(2, "0");
-  let yyyy = partes[2] ? String(partes[2]) : String(anioBase);
-  if (yyyy.length === 2) yyyy = "20" + yyyy;
-  return `${dd}/${mm}/${yyyy}`;
+function obtenerInfoMes(fechaDDMMYYYY) {
+  const partes = String(fechaDDMMYYYY ?? "").split("/");
+  if (partes.length !== 3) return { key: "", label: "" };
+  const mm = parseInt(partes[1], 10);
+  const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  return { key: `${partes[2]}-${String(mm).padStart(2, "0")}`, label: `${meses[mm - 1] || ""} ${partes[2]}` };
+}
+
+function obtenerInfoSemana(fechaDDMMYYYY) {
+  const p = String(fechaDDMMYYYY ?? "").split("/");
+  if (p.length !== 3) return { key: "", label: "" };
+  const [dd, mm, yyyy] = p.map(Number);
+  const f = new Date(yyyy, mm - 1, dd);
+  const dia = f.getDay();
+  const diffLunes = dia === 0 ? -6 : 1 - dia;
+  const lun = new Date(yyyy, mm - 1, dd + diffLunes);
+  const dom = new Date(lun.getFullYear(), lun.getMonth(), lun.getDate() + 6);
+  const lDD = String(lun.getDate()).padStart(2, "0");
+  const lMM = String(lun.getMonth() + 1).padStart(2, "0");
+  const dDD = String(dom.getDate()).padStart(2, "0");
+  const dMM = String(dom.getMonth() + 1).padStart(2, "0");
+  return {
+    key: `${lun.getFullYear()}-${lMM}-${lDD}`,
+    label: `Semana del ${lDD}/${lMM} al ${dDD}/${dMM}/${dom.getFullYear()}`
+  };
 }
 
 function formatearGuaranies(valor) {
   if (!valor && valor !== 0) return "";
-  const s = String(valor).trim();
-  const matchMil = s.match(/^(\d{1,4})\s*(?:mil|k)\s*(?:gs\.?)?$/i);
-  let num = 0;
-  if (matchMil) {
-    num = parseInt(matchMil[1], 10) * 1000;
-  } else {
-    const limpio = s.replace(/\D/g, "");
-    if (!limpio) return "";
-    num = parseInt(limpio, 10);
-  }
-  if (isNaN(num) || num <= 0) return "";
-  return num.toLocaleString("es-PY") + " Gs";
+  const limpio = String(valor).replace(/\D/g, "");
+  if (!limpio) return "";
+  return parseInt(limpio, 10).toLocaleString("es-PY") + " Gs";
 }
 
 function obtenerMontoNumerico(precioStr) {
   if (!precioStr) return 0;
-  const s = String(precioStr).trim();
-  const matchMil = s.match(/^(\d{1,4})\s*(?:mil|k)\s*(?:gs\.?)?$/i);
-  if (matchMil) return parseInt(matchMil[1], 10) * 1000;
-  return parseInt(s.replace(/\D/g, ""), 10) || 0;
+  return parseInt(String(precioStr).replace(/\D/g, ""), 10) || 0;
 }
 
-// EXTRACTOR ROBUSTO DE PRECIOS EN GUARANÍES (cualquier posición y formato)
-function extraerPrecioDeTexto(linea) {
-  let texto = String(linea || "").trim();
-  let precioFormateado = "";
-
-  // 1. Entre paréntesis: (50.000 gs), (50.000), (120000), (50 mil), (120k)
-  let m = texto.match(/\(\s*(?:gs\.?|g\$|₲)?\s*(\d{1,3}(?:[.,]\d{3})+|\d{4,9})\s*(?:gs\.?|guaran[ií]es|g\.?)?\s*\)/i);
-  if (m) {
-    const rawNum = parseInt(m[1].replace(/\D/g, ""), 10);
-    const tieneMoneda = /(?:gs|g\$|₲|guaran|\bg\b)/i.test(m[0]);
-    const tieneSep = /[.,]/.test(m[1]);
-    if (tieneMoneda || tieneSep || (rawNum >= 5000 && !(rawNum >= 1990 && rawNum <= 2039))) {
-      precioFormateado = formatearGuaranies(rawNum);
-      texto = (texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)).trim();
-    }
-  }
-
-  if (!precioFormateado) {
-    m = texto.match(/\(\s*(\d{1,4})\s*(?:mil|k)\s*(?:gs\.?)?\s*\)/i);
-    if (m) {
-      const rawNum = parseInt(m[1], 10) * 1000;
-      if (rawNum >= 1000) {
-        precioFormateado = formatearGuaranies(rawNum);
-        texto = (texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)).trim();
-      }
-    }
-  }
-
-  // 2. Prefijo de moneda: Gs. 50.000, Gs 50000, G$ 120.000, ₲50.000
-  if (!precioFormateado) {
-    m = texto.match(/(?:^|[\s\-–:=,/])(?:gs\.?|g\$|₲)\s*(\d{1,3}(?:[.,]\d{3})+|\d{4,9})(?=$|[\s\-–:,./)])/i);
-    if (m) {
-      precioFormateado = formatearGuaranies(m[1]);
-      texto = (texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)).trim();
-    }
-  }
-
-  // 3. Sufijo explícito en cualquier lugar: 5.000gs, 50.000 gs, 120000gs, 50.000g (evita 5G/4G)
-  if (!precioFormateado) {
-    m = texto.match(/(?:^|[\s\-–:=,/])(\d{1,3}(?:[.,]\d{3})+|\d{4,9})\s*(?:gs\.?|guaran[ií]es|g\.?)(?=$|[\s\-–:,.)/])/i);
-    if (m) {
-      precioFormateado = formatearGuaranies(m[1]);
-      texto = (texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)).trim();
-    }
-  }
-
-  // 4. Formato "mil" o "k" en cualquier posición: 50 mil, 120mil, 50k, 120k (evita 4k)
-  if (!precioFormateado) {
-    m = texto.match(/(?:^|[\s\-–:=,/])(\d{1,4})\s*mil(?:\s*gs\.?)?(?=$|[\s\-–:,.)/])/i);
-    if (m) {
-      precioFormateado = formatearGuaranies(parseInt(m[1], 10) * 1000);
-      texto = (texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)).trim();
-    }
-  }
-
-  if (!precioFormateado) {
-    m = texto.match(/(?:^|[\s\-–:=,/])(\d{1,4})k(?:\s*gs\.?)?(?=$|[\s\-–:,.)/])/i);
-    if (m && parseInt(m[1], 10) >= 5) {
-      precioFormateado = formatearGuaranies(parseInt(m[1], 10) * 1000);
-      texto = (texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)).trim();
-    }
-  }
-
-  // 5. Miles con punto o coma sin "gs" en cualquier posición: 5.000, 50.000, 120.000, 1.200.000
-  if (!precioFormateado) {
-    m = texto.match(/(?:^|[\s\-–:=,/])(\d{1,3}(?:[.,]\d{3})+)(?=$|[\s\-–:,.)/])/);
-    if (m) {
-      precioFormateado = formatearGuaranies(m[1]);
-      texto = (texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)).trim();
-    }
-  }
-
-  // 6. Número entero sin puntos ni "gs" (ej. 120000, 50000, 5000), ignorando años (1990-2039) y modelos (HL-1200, L3110)
-  if (!precioFormateado) {
-    const regexEntero = /(?:^|[\s:=,/])(\d{4,8})(?=$|[\s\-–:,.)/])/g;
-    let matchEntero;
-    while ((matchEntero = regexEntero.exec(texto)) !== null) {
-      const num = parseInt(matchEntero[1], 10);
-      if (num >= 1990 && num <= 2039) continue;
-      if (num >= 10000 || (num >= 5000 && num % 500 === 0)) {
-        precioFormateado = formatearGuaranies(num);
-        texto = (texto.slice(0, matchEntero.index) + " " + texto.slice(matchEntero.index + matchEntero[0].length)).trim();
-        break;
-      }
-    }
-  }
-
-  texto = texto.replace(/\s{2,}/g, " ").replace(/^[\s\-–:,/=]+|[\s\-–:,/=]+$/g, "").trim();
-  return { textoSinPrecio: texto, precio: precioFormateado };
-}
-
-function esNombreClienteValido(candidato) {
-  const c = String(candidato || "").replace(/^[\s\-–:,./()]+|[\s\-–:,./()]+$/g, "").trim();
-  if (c.length < 2 || c.length > 32) return false;
-  if (/\d/.test(c)) return false;
-
-  const low = c.toLowerCase();
-  if (PALABRAS_NO_CLIENTE.has(low)) return false;
-
-  const palabras = low.split(/\s+/).filter(Boolean);
-  if (palabras.length === 0 || palabras.length > 4) return false;
-
-  const conectores = new Set(["ña", "na", "don", "doña", "dona", "sr", "sr.", "sra", "sra.", "prof", "prof.", "cliente", "de", "del", "la", "el"]);
-  for (const p of palabras) {
-    const pLimpia = p.replace(/[.,:]/g, "");
-    if (PALABRAS_NO_CLIENTE.has(pLimpia) && !conectores.has(p) && !conectores.has(pLimpia)) {
-      return false;
-    }
-  }
-  if (palabras.every((p) => conectores.has(p) || conectores.has(p.replace(/[.,:]/g, "")))) {
-    return false;
-  }
-  return true;
-}
-
-function capitalizarCliente(c) {
-  return String(c || "")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .map((w) => (w.length > 1 ? w.charAt(0).toUpperCase() + w.slice(1) : w.toUpperCase()))
-    .join(" ");
-}
-
-function obtenerListaClientesConocidos() {
-  const conjunto = new Set(CLIENTES_BASE_CONOCIDOS);
-  if (Array.isArray(servicios)) {
-    servicios.forEach((s) => {
-      const n = String(s.notas || "").trim();
-      if (n && esNombreClienteValido(n)) {
-        conjunto.add(n.toLowerCase());
-      }
-    });
-  }
-  return Array.from(conjunto).sort((a, b) => b.length - a.length);
-}
-
-// EXTRACTOR ROBUSTO DE CLIENTE (etiquetas, paréntesis, separadores, último "de/para", prefijo y nombres conocidos)
-function extraerClienteDeTexto(textoCrudo) {
+function extraerPrecioDeTexto(textoCrudo) {
   let texto = String(textoCrudo || "").trim();
-  let cliente = "";
+  let pf = "";
+  const rP = /\(\s*(\d{1,3}(?:[.,]\d{3})+|\d{4,9})\s*(?:gs\.?|guaran[ií]es)\s*\)/i;
+  const rE = /(?:\s+[-–:]?\s*|\b)(\d{1,3}(?:[.,]\d{3})+|\d{4,9})\s*(?:gs\.?|guaran[ií]es)\b\.?/i;
+  const rM = /(?:\s+[-–:]?\s*|\b)(\d{1,4})\s*mil\s*(?:gs\.?)?\s*$/i;
+  const rMF = /\s+[-–:]?\s*(\d{1,3}(?:[.,]\d{3})+|\d{4,8})\s*$/;
 
-  // 1. Etiqueta explícita: "cliente: Ana", "cliente de Derlis", "cl: Honorio", "cli: Pedro"
-  let m = texto.match(/(?:^|[\s\-–,/(])(?:cliente\s+de|cliente|cli\.?|cl\.?)\s*[:\-]?\s*([A-ZÁÉÍÓÚÜÑa-záéíóúüñ.]+(?:\s+[A-ZÁÉÍÓÚÜÑa-záéíóúüñ.]+){0,2})(?=$|[\s\-–,/)])/i);
-  if (m && esNombreClienteValido(m[1])) {
-    cliente = capitalizarCliente(m[1]);
-    texto = (texto.slice(0, m.index) + " " + texto.slice(m.index + m[0].length)).trim();
-  }
-
-  // 2. Entre paréntesis: "(Derlis)", "(Ana)", "(Ña Graciela)"
-  if (!cliente) {
-    const regexParen = /\(\s*([^()]{2,32})\s*\)/g;
-    let mp;
-    while ((mp = regexParen.exec(texto)) !== null) {
-      const cand = mp[1].trim().replace(/^(?:cliente\s*(?:de)?|de|para)\s*[:\-]?\s*/i, "");
-      if (esNombreClienteValido(cand)) {
-        cliente = capitalizarCliente(cand);
-        texto = (texto.slice(0, mp.index) + " " + texto.slice(mp.index + mp[0].length)).trim();
-        break;
+  let m = texto.match(rP);
+  if (m) {
+    pf = formatearGuaranies(m[1]);
+    texto = texto.replace(m[0], " ").trim();
+  } else {
+    m = texto.match(rE);
+    if (m) {
+      pf = formatearGuaranies(m[1]);
+      texto = texto.replace(m[0], " ").trim();
+    } else {
+      m = texto.match(rM);
+      if (m) {
+        pf = formatearGuaranies(parseInt(m[1], 10) * 1000);
+        texto = texto.replace(m[0], " ").trim();
+      } else {
+        m = texto.match(rMF);
+        if (m) {
+          pf = formatearGuaranies(m[1]);
+          texto = texto.replace(m[0], " ").trim();
+        }
       }
     }
   }
-
-  // 3. Después de separador al final: "- Derlis", "/ Ana", "| Honorio", ", Juan Perez"
-  if (!cliente) {
-    m = texto.match(/(?:\s+[\-–/|]\s*|\s*[,;|]\s*)(?:de\s+|para\s+)?([A-ZÁÉÍÓÚÜÑa-záéíóúüñ.]+(?:\s+[A-ZÁÉÍÓÚÜÑa-záéíóúüñ.]+){0,2})\s*$/i);
-    if (m && esNombreClienteValido(m[1])) {
-      cliente = capitalizarCliente(m[1]);
-      texto = texto.slice(0, m.index).trim();
-    }
-  }
-
-  // 4. Después del ÚLTIMO "de" o "para" (corrige el bug de "cambio de pantalla de Derlis")
-  if (!cliente) {
-    const regexDe = /\b(?:de|para)\s+/gi;
-    let ultimoMatch = null;
-    let tmp;
-    while ((tmp = regexDe.exec(texto)) !== null) {
-      ultimoMatch = tmp;
-    }
-    if (ultimoMatch) {
-      const cola = texto.slice(ultimoMatch.index + ultimoMatch[0].length).trim();
-      if (esNombreClienteValido(cola)) {
-        cliente = capitalizarCliente(cola);
-        texto = texto.slice(0, ultimoMatch.index).trim();
-      }
-    }
-  }
-
-  // 5. Prefijo al inicio antes de ":" o " - ": "Derlis: A13 cambio de pantalla"
-  if (!cliente) {
-    m = texto.match(/^([A-ZÁÉÍÓÚÜÑa-záéíóúüñ.]+(?:\s+[A-ZÁÉÍÓÚÜÑa-záéíóúüñ.]+)?)\s*[:\-–]\s+(.+)$/);
-    if (m && esNombreClienteValido(m[1])) {
-      cliente = capitalizarCliente(m[1]);
-      texto = m[2].trim();
-    }
-  }
-
-  // 6. Nombre de cliente habitual/conocido al final sin separador (ej. "A13 cambio de pantalla Derlis")
-  if (!cliente) {
-    const conocidos = obtenerListaClientesConocidos();
-    for (const nombre of conocidos) {
-      const escaped = nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const rx = new RegExp(`(?:^|\\s)(${escaped})\\s*$`, "i");
-      const mc = texto.match(rx);
-      if (mc) {
-        cliente = capitalizarCliente(mc[1]);
-        texto = texto.slice(0, mc.index).trim();
-        break;
-      }
-    }
-  }
-
-  texto = texto.replace(/\s{2,}/g, " ").replace(/^[\s\-–:,/|]+|[\s\-–:,/|]+$/g, "").trim();
-  return { textoSinCliente: texto, cliente };
+  return { textoSinPrecio: texto.replace(/[-–:,\s]+$/, "").trim(), precio: pf };
 }
 
 function deducirIntervencion(trabajo) {
   const t = (trabajo || "").toLowerCase();
   const lista = [];
-  if (t.includes("pantalla") || t.includes("táctil") || t.includes("tactil") || t.includes("display") || t.includes("módulo") || t.includes("modulo")) lista.push("Cambio de Pantalla / Módulo");
-  if (t.includes("pin") || t.includes("puerto de carga") || t.includes("placa de carga") || t.includes("línea de carga") || t.includes("linea de carga") || t.includes("flex de carga") || t.includes("flex carga")) lista.push("Pin de Carga / Placa de Carga");
-  if (t.includes("batería") || t.includes("bateria") || t.includes("tapa") || t.includes("housing") || t.includes("botón") || t.includes("boton") || t.includes("botones") || t.includes("bisagra") || t.includes("cámara") || t.includes("camara") || t.includes("flex power")) lista.push("Cambio de Batería / Flex / Carcasa");
-  if (t.includes("desbloqueo") || t.includes("frp") || t.includes("flasheo") || t.includes("firmware") || t.includes("desbrickeo") || t.includes("cuentas") || t.includes("iniciar")) lista.push("Desbloqueo / FRP / Flasheo");
-  if (t.includes("fpc") || t.includes("ic") || t.includes("pistas") || t.includes("resoldado") || t.includes("reinicio") || t.includes("sensor") || t.includes("micrófono") || t.includes("microfono") || t.includes("audio") || t.includes("señal") || t.includes("no encendía") || t.includes("no encendia")) lista.push("Microelectrónica / Placa / FPC");
-  if (t.includes("limpieza") || t.includes("mantenimiento") || t.includes("humedad") || t.includes("cartucho") || t.includes("cabezal") || t.includes("almohadilla")) lista.push("Mantenimiento Físico / Limpieza");
-  if (t.includes("traspaso") || t.includes("pasar datos") || t.includes("pasar todos los datos") || t.includes("sacar datos") || t.includes("recuperación") || t.includes("recuperacion") || t.includes("office") || t.includes("ssd") || t.includes("disco") || t.includes("sistema") || t.includes("software") || t.includes("flujo") || t.includes("actualizar")) lista.push("Software / Traspaso de Datos / Backup");
-  if (t.includes("eléctrica") || t.includes("electrica") || t.includes("wifi") || t.includes("utp") || t.includes("ethernet") || t.includes("internet") || t.includes("led")) lista.push("Instalación / Redes / Electricidad");
-  return lista.length > 0 ? lista.join(" + ") : "Cambio de Pantalla / Módulo";
+  if (t.includes("limpieza") || t.includes("mantenimiento") || t.includes("recarga") || t.includes("purgado")) lista.push("Mantenimiento Físico / Limpieza");
+  if (t.includes("cambio") || t.includes("reemplazo") || t.includes("teclado") || t.includes("batería") || t.includes("bateria") || t.includes("pantalla") || t.includes("pin") || t.includes("flex") || t.includes("ssd") || t.includes("ram") || t.includes("cabezal") || t.includes("almohadilla")) lista.push("Reemplazo de Repuesto / Hardware");
+  if (t.includes("reset") || t.includes("contador")) lista.push("Reset de Software / Contadores");
+  if (t.includes("software") || t.includes("sistema") || t.includes("office") || t.includes("traspaso") || t.includes("actualizar") || t.includes("datos") || t.includes("pasar")) lista.push("Software / Sistema Operativo / Backup");
+  if (t.includes("placa") || t.includes("no encendía") || t.includes("no encendia") || t.includes("fpc") || t.includes("resoldado")) lista.push("Microelectrónica / Reparación de Placa");
+  if (t.includes("instalación") || t.includes("instalacion") || t.includes("redes") || t.includes("wifi") || t.includes("gps")) lista.push("Instalación / Conectividad / Redes");
+  if (t.includes("desbloqueo") || t.includes("frp") || t.includes("cuenta")) lista.push("Desbloqueo / FRP / Firmware");
+  if (t.includes("impresión") || t.includes("impresion") || t.includes("escaneo") || t.includes("plotter")) lista.push("Impresión / Corte Plotter / Trabajo Práctico");
+  return lista.length > 0 ? lista.join(" + ") : "Mantenimiento Físico / Limpieza";
 }
 
 function deducirRepuestos(trabajo) {
   const t = (trabajo || "").toLowerCase();
   const rep = [];
-  if (t.includes("pantalla") || t.includes("módulo") || t.includes("modulo")) rep.push("Módulo de Pantalla");
-  if (t.includes("pin de carga") || t.includes("cambio de pin")) rep.push("Pin de Carga");
-  if (t.includes("placa de carga")) rep.push("Placa de Carga");
-  if (t.includes("flex de carga") || t.includes("flex carga")) rep.push("Flex de Carga");
-  else if (t.includes("flex")) rep.push("Cable Flex");
+  if (t.includes("ssd") || t.includes("disco")) rep.push("Disco SSD");
+  if (t.includes("ram")) rep.push("Memoria RAM");
+  if (t.includes("teclado")) rep.push("Teclado");
   if (t.includes("batería") || t.includes("bateria")) rep.push("Batería");
-  if (t.includes("tapa")) rep.push("Tapa Trasera");
-  if (t.includes("housing")) rep.push("Housing / Carcasa");
-  if (t.includes("ssd") || t.includes("cambiar disco")) rep.push("Disco SSD");
-  if (t.includes("cabezal")) rep.push("Cabezal");
   if (t.includes("almohadilla")) rep.push("Almohadillas");
+  if (t.includes("cabezal")) rep.push("Cabezal");
+  if (t.includes("flex")) rep.push("Cable Flex");
+  if (t.includes("pin de carga") || t.includes("placa de carga")) rep.push("Pin de Carga");
+  if (t.includes("pantalla")) rep.push("Módulo de Pantalla");
+  if (t.includes("tinta") || t.includes("recarga")) rep.push("Tinta");
   return rep.length > 0 ? rep.join(" + ") : "Ninguno";
 }
-
-const DATOS_MAESTROS = RAW_DATOS_JUNIOR.map(([id, fecha, categoria, marca, modelo, trabajo, notas]) => {
-  const extNotas = extraerPrecioDeTexto(notas);
-  return {
-    id,
-    fecha,
-    categoria,
-    marca,
-    modelo,
-    intervencion: deducirIntervencion(trabajo),
-    trabajo,
-    repuestos: deducirRepuestos(trabajo),
-    precio: extNotas.precio || "",
-    estado: "Entregado",
-    notas: extNotas.precio ? extNotas.textoSinPrecio : notas,
-    tecnico: TECNICO_NOMBRE
-  };
-});
 
 function ordenarPorFechaYNumero(lista) {
   return [...lista].sort((a, b) => {
@@ -823,249 +498,24 @@ function generarNuevoID(offset = 1) {
     const n = parseInt(String(s.id).replace(/\D/g, ""), 10) || 0;
     return n > acc ? n : acc;
   }, 0);
-  return `REP-${String(maxNum + offset).padStart(3, "0")}`;
+  return `SER-${String(maxNum + offset).padStart(3, "0")}`;
 }
 
-function normalizarRegistros(lista) {
-  return lista.map((item) => {
-    const idLimpio = String(item.id || "").trim().toUpperCase();
-    const trabajoRaw = String(item.trabajo || "").replace(/Ajuste reflux de conector FPC/gi, "Ajuste y resoldado de conector FPC");
-    const extTrabajo = extraerPrecioDeTexto(trabajoRaw);
-    const notasRaw = String(item.notas || "").trim();
-    const extNotas = extraerPrecioDeTexto(notasRaw);
-
-    const precioFinal = item.precio ? formatearGuaranies(item.precio) : (extTrabajo.precio || extNotas.precio || "");
-    const trabajoLimpio = (extTrabajo.precio ? extTrabajo.textoSinPrecio : trabajoRaw).trim();
-    const notasLimpias = (extNotas.precio && !item.precio ? extNotas.textoSinPrecio : notasRaw).trim();
-    const inter = (item.intervencion ? String(item.intervencion).replace(/\/ Reflux/gi, "").trim() : deducirIntervencion(trabajoLimpio));
-
-    const fechaNorm = normalizarFecha(item.fecha);
-    const catLimpia = String(item.categoria || "Smartphone").trim();
-    const marcaLimpia = String(item.marca || "Genérico").trim();
-    const modeloLimpio = String(item.modelo || "-").trim();
-    const repuestosLimpio = String(item.repuestos || deducirRepuestos(trabajoLimpio)).trim();
-    const diaSemana = obtenerDiaSemana(fechaNorm);
-    const timestamp = convertirFechaATimestamp(fechaNorm);
-
-    const claveGemelo = `${fechaNorm}|${limpiarTextoComparacion(marcaLimpia)}|${limpiarTextoComparacion(modeloLimpio)}|${limpiarTextoComparacion(trabajoLimpio)}`;
-    const indiceBusqueda = limpiarParaBusqueda(
-      `${idLimpio} ${fechaNorm} ${diaSemana} ${catLimpia} ${marcaLimpia} ${modeloLimpio} ${inter} ${trabajoLimpio} ${repuestosLimpio} ${precioFinal} ${notasLimpias}`
-    );
-
-    return {
-      id: idLimpio,
-      fecha: fechaNorm,
-      categoria: catLimpia,
-      marca: marcaLimpia,
-      modelo: modeloLimpio,
-      intervencion: inter,
-      trabajo: trabajoLimpio,
-      repuestos: repuestosLimpio,
-      precio: precioFinal,
-      estado: item.estado || "Entregado",
-      notas: notasLimpias,
-      tecnico: TECNICO_NOMBRE,
-      _dia: diaSemana,
-      _timestamp: timestamp,
-      _claveGemelo: claveGemelo,
-      _busqueda: indiceBusqueda
-    };
+function calcularModa(arr) {
+  if (!arr.length) return "-";
+  const conteo = {};
+  let maxVal = arr[0];
+  let maxCount = 0;
+  arr.forEach((v) => {
+    conteo[v] = (conteo[v] || 0) + 1;
+    if (conteo[v] > maxCount) {
+      maxCount = conteo[v];
+      maxVal = v;
+    }
   });
+  return `${maxVal} (${maxCount})`;
 }
 
-// ============================================================================
-// CONEXIÓN REAL A SUPABASE (SOLO REGISTROS REP- DE JUNIOR)
-// ============================================================================
-function empaquetarParaSupabase(reg) {
-  return {
-    id: String(reg.id).toUpperCase(),
-    fecha: normalizarFecha(reg.fecha),
-    tecnico: TECNICO_NOMBRE,
-    categoria: reg.categoria,
-    marca: reg.marca,
-    modelo: reg.modelo,
-    intervencion: reg.intervencion,
-    trabajo: reg.trabajo,
-    repuestos: reg.repuestos || "Ninguno",
-    precio: formatearGuaranies(reg.precio) || "",
-    estado: reg.estado || "Entregado",
-    notas: reg.notas || ""
-  };
-}
-
-function actualizarBadgeSupabase(estado, textoPersonalizado = "") {
-  const b = document.getElementById("cloud-badge");
-  if (!b) return;
-  if (estado === "ok") {
-    b.textContent = textoPersonalizado || "Supabase Conectado (SQL)";
-    b.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600 font-bold tracking-wide";
-  } else if (estado === "warn") {
-    b.textContent = textoPersonalizado || "Supabase Conectado (Presiona Migrar)";
-    b.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-500 font-bold tracking-wide";
-  } else {
-    b.textContent = textoPersonalizado || "Modo Local (Sin red)";
-    b.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-600 font-bold tracking-wide";
-  }
-}
-
-async function obtenerTodosJuniorDeSupabase() {
-  const acumulados = [];
-  const paso = 1000;
-  let offset = 0;
-
-  while (true) {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/servicios?id=like.REP-*&select=*&limit=${paso}&offset=${offset}`,
-      { method: "GET", headers: HEADERS_GET }
-    );
-    if (!res.ok) {
-      const errTxt = await res.text();
-      throw new Error(`HTTP ${res.status}: ${errTxt}`);
-    }
-    const bloque = await res.json();
-    if (!Array.isArray(bloque) || bloque.length === 0) break;
-    acumulados.push(...bloque);
-    if (bloque.length < paso) break;
-    offset += paso;
-  }
-  return acumulados;
-}
-
-async function guardarServicioSupabase(reg) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?on_conflict=id`, {
-      method: "POST",
-      headers: HEADERS_POST,
-      body: JSON.stringify(empaquetarParaSupabase(reg))
-    });
-    if (!res.ok) {
-      console.error("Error Supabase al guardar:", res.status, await res.text());
-      actualizarBadgeSupabase("error", `Error Guardar (${res.status})`);
-      return false;
-    }
-    actualizarBadgeSupabase("ok");
-    return true;
-  } catch (e) {
-    console.error("Error red al guardar:", e);
-    actualizarBadgeSupabase("error");
-    return false;
-  }
-}
-
-async function guardarLoteSupabase(loteCrudo, onProgress = null) {
-  const payload = loteCrudo.map(empaquetarParaSupabase);
-  const tamBloque = 100;
-  try {
-    for (let i = 0; i < payload.length; i += tamBloque) {
-      const bloque = payload.slice(i, i + tamBloque);
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?on_conflict=id`, {
-        method: "POST",
-        headers: HEADERS_POST,
-        body: JSON.stringify(bloque)
-      });
-      if (!res.ok) {
-        const errTxt = await res.text();
-        console.error("Error Supabase bloque:", res.status, errTxt);
-        return { ok: false, status: res.status, detail: errTxt };
-      }
-      if (onProgress) onProgress(Math.min(i + bloque.length, payload.length), payload.length);
-    }
-    actualizarBadgeSupabase("ok");
-    return { ok: true };
-  } catch (e) {
-    console.error("Error red lote:", e);
-    return { ok: false, status: 0, detail: e.message };
-  }
-}
-
-async function eliminarServicioSupabase(id) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/servicios?id=eq.${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      headers: HEADERS_GET
-    });
-    if (!res.ok) {
-      console.error("Error Supabase al eliminar:", res.status, await res.text());
-    }
-  } catch (e) {
-    console.error("Error red al eliminar:", e);
-  }
-}
-
-async function cargarBaseDeDatos() {
-  let cargadoLocal = false;
-  const cache = localStorage.getItem(CACHE_LOCAL_KEY);
-  if (cache) {
-    try {
-      const parsed = JSON.parse(cache);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        servicios = ordenarPorFechaYNumero(normalizarRegistros(parsed));
-        cargadoLocal = true;
-      }
-    } catch (e) {}
-  }
-  if (!cargadoLocal) {
-    servicios = ordenarPorFechaYNumero(normalizarRegistros([...DATOS_MAESTROS]));
-  }
-
-  poblarSelectores();
-  aplicarFiltros();
-
-  try {
-    const soloJunior = await obtenerTodosJuniorDeSupabase();
-    if (soloJunior.length > 0) {
-      servicios = ordenarPorFechaYNumero(normalizarRegistros(soloJunior));
-      localStorage.setItem(CACHE_LOCAL_KEY, JSON.stringify(servicios));
-      poblarSelectores();
-      aplicarFiltros();
-      actualizarBadgeSupabase("ok");
-    } else {
-      actualizarBadgeSupabase("warn", "Supabase Conectado (Presiona Migrar)");
-    }
-  } catch (e) {
-    console.warn("Error leyendo Supabase:", e);
-    actualizarBadgeSupabase("error");
-  }
-}
-
-window.migrarBaseASupabase = async function () {
-  const btn = document.getElementById("btn-migrar-supabase");
-  const estadoTxt = document.getElementById("estado-migracion-texto");
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Subiendo registros...";
-  }
-  if (estadoTxt) estadoTxt.textContent = `Preparando ${servicios.length} registros de Junior...`;
-
-  const resultado = await guardarLoteSupabase(servicios, (subidos, total) => {
-    if (btn) btn.textContent = `Subiendo ${subidos} / ${total}...`;
-    if (estadoTxt) estadoTxt.textContent = `Enviados ${subidos} de ${total} registros a Supabase...`;
-  });
-
-  if (btn) {
-    btn.disabled = false;
-    btn.innerHTML = `<i data-lucide="upload-cloud" class="w-4 h-4"></i> Migrar Base Local a Supabase`;
-    inicializarIconos();
-  }
-
-  if (resultado.ok) {
-    if (estadoTxt) estadoTxt.textContent = `¡Sincronización completada (${servicios.length} registros)!`;
-    alert(`¡Éxito! Se subieron los ${servicios.length} registros de Junior Almirón a Supabase sin tocar los de Ángel.`);
-    ocultarModal("modal-supabase");
-  } else {
-    if (estadoTxt) estadoTxt.textContent = `Error al subir (${resultado.status || "red"}).`;
-    alert(`Error al migrar a Supabase (${resultado.status}):\n${resultado.detail}`);
-  }
-};
-
-window.recargarDesdeSupabase = async function () {
-  await cargarBaseDeDatos();
-  ocultarModal("modal-supabase");
-};
-
-// ============================================================================
-// DETECTOR DE DUPLICADOS (INDIVIDUAL Y EN LOTE)
-// ============================================================================
 function verificarDuplicadoIndividual(nuevoItem, ignorarId = null) {
   const fNueva = normalizarFecha(nuevoItem.fecha);
   const marcaNueva = limpiarTextoComparacion(nuevoItem.marca);
@@ -1084,81 +534,87 @@ function verificarDuplicadoIndividual(nuevoItem, ignorarId = null) {
   });
 }
 
-function evaluarDuplicadosEnLote(listaLote) {
-  return listaLote.map((item, idx) => {
-    const fItem = normalizarFecha(item.fecha);
-    const marcaItem = limpiarTextoComparacion(item.marca);
-    const modeloItem = limpiarTextoComparacion(item.modelo);
-    const trabajoItem = limpiarTextoComparacion(item.trabajo);
-    const intItem = limpiarTextoComparacion(item.intervencion);
-    const alertas = [];
+function normalizarRegistros(lista) {
+  return lista.map((item) => {
+    const idLimpio = String(item.id || "").trim().toUpperCase();
+    let inter = item.intervencion || deducirIntervencion(item.trabajo || "");
+    inter = inter.replace(/Mantenimiento Físico \/ Limpieza \/ Reflux/gi, "Mantenimiento Físico / Limpieza").replace(/\/ Reflux/gi, "").trim();
 
-    const enBD = servicios.filter((s) => {
-      if (normalizarFecha(s.fecha) !== fItem) return false;
-      return (
-        limpiarTextoComparacion(s.marca) === marcaItem &&
-        limpiarTextoComparacion(s.modelo) === modeloItem &&
-        limpiarTextoComparacion(s.trabajo) === trabajoItem
-      );
-    });
+    let notasRaw = String(item.notas || "").trim();
+    const extTrabajo = extraerPrecioDeTexto(item.trabajo || "");
+    const extNotas = extraerPrecioDeTexto(notasRaw);
 
-    if (enBD.length > 0) {
-      alertas.push({
-        nivel: "rojo",
-        mensaje: `Ya registrado el ${fItem} en la base (${enBD.map((x) => x.id).join(", ")})`
-      });
-    }
+    const precioFinal = item.precio ? formatearGuaranies(item.precio) : (extTrabajo.precio || extNotas.precio || "");
+    const trabajoLimpio = (extTrabajo.precio ? extTrabajo.textoSinPrecio : (item.trabajo || "")).trim();
+    const notasLimpias = (extNotas.precio ? extNotas.textoSinPrecio : notasRaw).trim();
 
-    const repetidosEnNota = [];
-    listaLote.forEach((otro, otroIdx) => {
-      if (otroIdx === idx) return;
-      if (normalizarFecha(otro.fecha) !== fItem) return;
-      const mMarca = limpiarTextoComparacion(otro.marca) === marcaItem;
-      const mModelo = limpiarTextoComparacion(otro.modelo) === modeloItem;
-      const mTrabajo = limpiarTextoComparacion(otro.trabajo) === trabajoItem;
-      const mInt = limpiarTextoComparacion(otro.intervencion) === intItem;
+    const fechaNorm = normalizarFecha(item.fecha);
+    const catLimpia = String(item.categoria || "Notebook / Laptop").trim();
+    const marcaLimpia = String(item.marca || "Genérico").trim();
+    const modeloLimpio = String(item.modelo || "-").trim();
+    const repuestosLimpio = String(item.repuestos || deducirRepuestos(trabajoLimpio)).trim();
 
-      if (mMarca && mModelo && mTrabajo) {
-        repetidosEnNota.push(`Fila #${otroIdx + 1} (Mismo equipo y servicio el ${fItem})`);
-      } else if (mMarca && mModelo && mInt) {
-        repetidosEnNota.push(`Fila #${otroIdx + 1} (Mismo equipo e intervención el ${fItem})`);
-      } else if (mTrabajo && trabajoItem.length > 5) {
-        repetidosEnNota.push(`Fila #${otroIdx + 1} (Mismo servicio repetido el ${fItem})`);
-      }
-    });
+    const diaSemana = obtenerDiaSemana(fechaNorm);
+    const infoMes = obtenerInfoMes(fechaNorm);
+    const infoSem = obtenerInfoSemana(fechaNorm);
+    const timestamp = convertirFechaATimestamp(fechaNorm);
+    const montoNum = obtenerMontoNumerico(precioFinal);
 
-    if (repetidosEnNota.length > 0) {
-      alertas.push({
-        nivel: "ambar",
-        mensaje: `Repetido en esta fecha con: ${repetidosEnNota.join(", ")}`
-      });
-    }
+    const claveGemelo = `${fechaNorm}|${limpiarTextoComparacion(marcaLimpia)}|${limpiarTextoComparacion(modeloLimpio)}|${limpiarTextoComparacion(trabajoLimpio)}`;
+    const indiceBusqueda = limpiarParaBusqueda(`${idLimpio} ${fechaNorm} ${diaSemana} ${infoMes.label} ${catLimpia} ${marcaLimpia} ${modeloLimpio} ${inter} ${trabajoLimpio} ${repuestosLimpio} ${precioFinal} ${notasLimpias}`);
 
-    return { ...item, alertasDuplicado: alertas };
+    return {
+      id: idLimpio,
+      fecha: fechaNorm,
+      categoria: catLimpia,
+      marca: marcaLimpia,
+      modelo: modeloLimpio,
+      intervencion: inter,
+      trabajo: trabajoLimpio,
+      repuestos: repuestosLimpio,
+      precio: precioFinal,
+      estado: item.estado || "Entregado",
+      notas: notasLimpias,
+      tecnico: TECNICO_NOMBRE,
+      _dia: diaSemana,
+      _mesKey: infoMes.key,
+      _mesLabel: infoMes.label,
+      _semanaKey: infoSem.key,
+      _semanaLabel: infoSem.label,
+      _timestamp: timestamp,
+      _monto: montoNum,
+      _claveGemelo: claveGemelo,
+      _busqueda: indiceBusqueda
+    };
   });
 }
 
 // ============================================================================
-// SELECTORES, FILTROS, KPIs Y RENDER DE TABLA / MÓVIL
+// ARRANQUE DEL SISTEMA Y FILTROS
 // ============================================================================
-function obtenerIntervencionesUnicas() {
-  const conjunto = new Set();
-  servicios.forEach((s) => {
-    String(s.intervencion || "")
-      .split("+")
-      .map((x) => x.trim())
-      .filter(Boolean)
-      .forEach((p) => conjunto.add(p));
-  });
-  return [...conjunto].sort();
-}
+document.addEventListener("DOMContentLoaded", () => {
+  inicializarIconos();
+  configurarEventos();
+
+  if (sessionStorage.getItem(AUTH_SESSION_KEY) === "true") {
+    const login = document.getElementById("pantalla-login");
+    const app = document.getElementById("app-contenido");
+    if (login) login.style.display = "none";
+    if (app) {
+      app.classList.remove("hidden");
+      app.style.display = "flex";
+    }
+    cargarBaseDeDatos();
+    inicializarIconos();
+  }
+});
 
 function poblarSelectores() {
   const selCat = document.getElementById("filtro-categoria");
   const selMarca = document.getElementById("filtro-marca");
   const selInt = document.getElementById("filtro-intervencion");
   const selFecha = document.getElementById("filtro-fecha");
-  if (!selCat || !selMarca || !selInt || !selFecha) return;
+  if (!selCat) return;
 
   const valCat = selCat.value;
   const valMarca = selMarca.value;
@@ -1168,33 +624,19 @@ function poblarSelectores() {
   const conteoCat = {};
   const conteoMarca = {};
   const conteoFecha = {};
+  const intervenciones = new Set();
 
   servicios.forEach((s) => {
     conteoCat[s.categoria] = (conteoCat[s.categoria] || 0) + 1;
     conteoMarca[s.marca] = (conteoMarca[s.marca] || 0) + 1;
     conteoFecha[s.fecha] = (conteoFecha[s.fecha] || 0) + 1;
+    s.intervencion.split("+").forEach((i) => intervenciones.add(i.trim()));
   });
 
-  const intervenciones = obtenerIntervencionesUnicas();
-
-  selCat.innerHTML =
-    '<option value="">Todas las categorías</option>' +
-    Object.keys(conteoCat).sort().map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)} (${conteoCat[c]})</option>`).join("");
-
-  selMarca.innerHTML =
-    '<option value="">Todas las marcas</option>' +
-    Object.keys(conteoMarca).sort().map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)} (${conteoMarca[m]})</option>`).join("");
-
-  selInt.innerHTML =
-    '<option value="">Todas las intervenciones</option>' +
-    intervenciones.map((i) => `<option value="${escapeHtml(i)}">${escapeHtml(i)}</option>`).join("");
-
-  selFecha.innerHTML =
-    '<option value="">Todas las fechas</option>' +
-    Object.keys(conteoFecha)
-      .sort((a, b) => convertirFechaATimestamp(b) - convertirFechaATimestamp(a))
-      .map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)} (${obtenerDiaSemana(f)} · ${conteoFecha[f]} serv.)</option>`)
-      .join("");
+  selCat.innerHTML = '<option value="">Todas las categorías</option>' + Object.keys(conteoCat).sort().map((c) => `<option value="${c}">${c} (${conteoCat[c]})</option>`).join("");
+  selMarca.innerHTML = '<option value="">Todas las marcas</option>' + Object.keys(conteoMarca).sort().map((m) => `<option value="${m}">${m} (${conteoMarca[m]})</option>`).join("");
+  selInt.innerHTML = '<option value="">Todas las intervenciones</option>' + [...intervenciones].filter(Boolean).sort().map((i) => `<option value="${i}">${i}</option>`).join("");
+  selFecha.innerHTML = '<option value="">Todas las fechas</option>' + Object.keys(conteoFecha).sort((a, b) => convertirFechaATimestamp(b) - convertirFechaATimestamp(a)).map((f) => `<option value="${f}">${f} (${obtenerDiaSemana(f)} · ${conteoFecha[f]} serv.)</option>`).join("");
 
   selCat.value = valCat;
   selMarca.value = valMarca;
@@ -1239,11 +681,11 @@ function aplicarFiltros() {
 }
 
 function obtenerColorBadge(categoria) {
-  if (categoria.includes("Smartphone") || categoria.includes("Celular")) return "bg-teal-100 text-teal-800 border-teal-200";
-  if (categoria.includes("Tablet")) return "bg-sky-100 text-sky-800 border-sky-200";
   if (categoria.includes("Impresora")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (categoria.includes("Laptop") || categoria.includes("PC")) return "bg-amber-100 text-amber-800 border-amber-200";
-  if (categoria.includes("Audio")) return "bg-purple-100 text-purple-800 border-purple-200";
+  if (categoria.includes("Notebook") || categoria.includes("PC")) return "bg-amber-100 text-amber-800 border-amber-200";
+  if (categoria.includes("Smartphone")) return "bg-teal-100 text-teal-800 border-teal-200";
+  if (categoria.includes("Microelectrónica")) return "bg-purple-100 text-purple-800 border-purple-200";
+  if (categoria.includes("Impresiones") || categoria.includes("Plotter")) return "bg-sky-100 text-sky-800 border-sky-200";
   return "bg-slate-100 text-slate-700 border-slate-200";
 }
 
@@ -1254,100 +696,57 @@ function renderizarVista(lista) {
   if (contador) contador.textContent = `Mostrando ${lista.length} registros`;
 
   if (lista.length === 0) {
-    const vacio = `<div class="py-10 text-center text-slate-500 text-sm">No se encontraron servicios con los filtros seleccionados.</div>`;
+    const vacio = `<div class="py-10 text-center text-slate-500 text-sm">No se encontraron servicios.</div>`;
     if (tbody) tbody.innerHTML = `<tr><td colspan="10">${vacio}</td></tr>`;
     if (listaMovil) listaMovil.innerHTML = vacio;
     return;
   }
 
   const conteoGemelos = {};
-  lista.forEach((it) => {
-    conteoGemelos[it._claveGemelo] = (conteoGemelos[it._claveGemelo] || 0) + 1;
-  });
-
-  const invertidos = [...lista].reverse();
+  lista.forEach((i) => (conteoGemelos[i._claveGemelo] = (conteoGemelos[i._claveGemelo] || 0) + 1));
 
   if (window.innerWidth < 768 && listaMovil) {
-    listaMovil.innerHTML = invertidos.map((item) => {
+    listaMovil.innerHTML = [...lista].reverse().map((item) => {
       const esGemelo = conteoGemelos[item._claveGemelo] > 1;
-      const safeId = escapeHtml(item.id);
       return `
         <div class="p-4 space-y-2 ${esGemelo ? "bg-amber-50/40" : "hover:bg-slate-50"}">
-          <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold text-teal-700 text-sm">${safeId}</span>
-              <span class="text-xs font-semibold text-slate-700">· ${escapeHtml(item.fecha)}</span>
-              <span class="text-[11px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">${escapeHtml(item._dia)}</span>
-              ${esGemelo ? `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold border border-amber-300">⚠️ Repetido (${conteoGemelos[item._claveGemelo]}x)</span>` : ""}
+              <span class="font-bold text-teal-700 text-sm">${item.id}</span>
+              <span class="text-xs font-semibold text-slate-700">· ${item.fecha}</span>
+              <span class="text-[11px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">${item._dia}</span>
             </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button type="button" onclick="window.abrirEditarServicio('${safeId}')" class="text-xs font-extrabold px-2.5 py-1 rounded-md cursor-pointer ${item.precio ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-slate-100 text-slate-600 border border-slate-300"}">${item.precio ? escapeHtml(item.precio) : "+ Gs"}</button>
-              <button type="button" onclick="window.abrirEditarServicio('${safeId}')" title="Editar" class="text-slate-400 hover:text-teal-600 p-1 cursor-pointer">${SVG_EDIT}</button>
-              <button type="button" onclick="window.eliminarServicio('${safeId}')" title="Eliminar" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer">${SVG_TRASH}</button>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="window.abrirEditarServicio('${item.id}')" class="text-xs font-extrabold px-2.5 py-1 rounded-md ${item.precio ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-slate-100 text-slate-600 border border-slate-300"}">${item.precio || "+ Gs"}</button>
+              <button type="button" onclick="window.eliminarServicio('${item.id}')" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer">${SVG_TRASH}</button>
             </div>
           </div>
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="font-bold text-slate-900 text-sm">${escapeHtml(item.marca)} <span class="font-normal text-slate-500">· ${escapeHtml(item.modelo)}</span></p>
-            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md border ${obtenerColorBadge(item.categoria)}">${escapeHtml(item.categoria)}</span>
-          </div>
-          <p class="text-xs font-medium text-teal-800">${escapeHtml(item.intervencion)}</p>
-          <p class="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">${escapeHtml(item.trabajo)}</p>
-          <div class="flex flex-wrap items-center justify-between text-xs text-slate-500 pt-1 gap-2">
-            <span><strong>Insumos:</strong> ${escapeHtml(item.repuestos || "Ninguno")}</span>
-            <span class="text-teal-800 font-semibold">${escapeHtml(item.notas || "-")}</span>
-          </div>
+          <p class="font-bold text-slate-900 text-sm">${item.marca} <span class="font-normal text-slate-500">· ${item.modelo}</span></p>
+          <p class="text-xs font-medium text-teal-800">${item.intervencion}</p>
+          <p class="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">${item.trabajo}</p>
         </div>`;
     }).join("");
   } else if (tbody) {
-    tbody.innerHTML = invertidos.map((item) => {
+    tbody.innerHTML = [...lista].reverse().map((item) => {
       const esGemelo = conteoGemelos[item._claveGemelo] > 1;
-      const safeId = escapeHtml(item.id);
       return `
-        <tr class="${esGemelo ? "bg-amber-50/40 hover:bg-amber-50/80" : "hover:bg-slate-50"} transition">
-          <td class="py-3 px-4 font-bold text-teal-700 whitespace-nowrap">${safeId}</td>
-          <td class="py-3 px-4 whitespace-nowrap">
-            <div class="font-semibold text-slate-800">${escapeHtml(item.fecha)}</div>
-            <div class="text-[11px] font-bold text-indigo-600 uppercase tracking-wide">${escapeHtml(item._dia)}</div>
-          </td>
-          <td class="py-3 px-4">
-            <span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-md border ${obtenerColorBadge(item.categoria)}">${escapeHtml(item.categoria)}</span>
-          </td>
-          <td class="py-3 px-4">
-            <div class="font-bold text-slate-900">${escapeHtml(item.marca)}</div>
-            <div class="text-xs text-slate-500">${escapeHtml(item.modelo)}</div>
-          </td>
-          <td class="py-3 px-4 text-xs font-medium text-slate-700 max-w-xs">${escapeHtml(item.intervencion)}</td>
-          <td class="py-3 px-4 text-slate-800 max-w-xs">
-            <div>${escapeHtml(item.trabajo)}</div>
-            ${esGemelo ? `<span class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">⚠️ Mismo equipo y servicio en esta fecha (${conteoGemelos[item._claveGemelo]}x)</span>` : ""}
-          </td>
-          <td class="py-3 px-4 text-xs text-slate-600">${escapeHtml(item.repuestos || "Ninguno")}</td>
-          <td class="py-3 px-4 text-right whitespace-nowrap">
-            <button type="button" onclick="window.abrirEditarServicio('${safeId}')" class="cursor-pointer transition ${item.precio ? "inline-block text-xs font-extrabold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100" : "inline-block text-[11px] font-bold px-2.5 py-1 rounded-md bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200"}">${item.precio ? escapeHtml(item.precio) : "+ Cargar Gs"}</button>
-          </td>
-          <td class="py-3 px-4 text-xs font-semibold text-teal-800">${escapeHtml(item.notas || "-")}</td>
+        <tr class="${esGemelo ? "bg-amber-50/40" : "hover:bg-slate-50"} transition">
+          <td class="py-3 px-4 font-bold text-teal-700 whitespace-nowrap">${item.id}</td>
+          <td class="py-3 px-4 whitespace-nowrap"><div class="font-semibold text-slate-800">${item.fecha}</div><div class="text-[11px] font-bold text-indigo-600 uppercase">${item._dia}</div></td>
+          <td class="py-3 px-4"><span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-md border ${obtenerColorBadge(item.categoria)}">${item.categoria}</span></td>
+          <td class="py-3 px-4"><div class="font-bold text-slate-900">${item.marca}</div><div class="text-xs text-slate-500">${item.modelo}</div></td>
+          <td class="py-3 px-4 text-xs font-medium text-slate-700 max-w-xs">${item.intervencion}</td>
+          <td class="py-3 px-4 text-slate-800 max-w-xs">${item.trabajo}</td>
+          <td class="py-3 px-4 text-xs text-slate-600">${item.repuestos}</td>
+          <td class="py-3 px-4 text-right whitespace-nowrap"><button type="button" onclick="window.abrirEditarServicio('${item.id}')" class="cursor-pointer transition ${item.precio ? "inline-block text-xs font-extrabold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200" : "inline-block text-[11px] font-bold px-2.5 py-1 rounded-md bg-slate-100 text-slate-500 border border-slate-200"}">${item.precio || "+ Cargar Gs"}</button></td>
+          <td class="py-3 px-4 text-xs font-semibold text-teal-800">${item.notas || "-"}</td>
           <td class="py-3 px-4 text-center whitespace-nowrap">
-            <button type="button" onclick="window.abrirEditarServicio('${safeId}')" title="Editar servicio" class="text-slate-400 hover:text-teal-600 p-1.5 cursor-pointer transition">${SVG_EDIT}</button>
-            <button type="button" onclick="window.eliminarServicio('${safeId}')" title="Eliminar servicio" class="text-slate-400 hover:text-rose-600 p-1.5 cursor-pointer transition">${SVG_TRASH}</button>
+            <button type="button" onclick="window.abrirEditarServicio('${item.id}')" title="Editar" class="text-slate-400 hover:text-teal-600 p-1.5 cursor-pointer transition">${SVG_EDIT}</button>
+            <button type="button" onclick="window.eliminarServicio('${item.id}')" title="Eliminar" class="text-slate-400 hover:text-rose-600 p-1.5 cursor-pointer transition">${SVG_TRASH}</button>
           </td>
         </tr>`;
     }).join("");
   }
-}
-
-function calcularModa(arr) {
-  if (!arr.length) return "-";
-  const conteo = {};
-  let maxVal = arr[0];
-  let maxCount = 0;
-  for (const v of arr) {
-    conteo[v] = (conteo[v] || 0) + 1;
-    if (conteo[v] > maxCount) {
-      maxCount = conteo[v];
-      maxVal = v;
-    }
-  }
-  return `${maxVal} (${maxCount})`;
 }
 
 function actualizarKPIs(filtrados) {
@@ -1357,20 +756,14 @@ function actualizarKPIs(filtrados) {
   const kMarca = document.getElementById("kpi-marca");
   const kInt = document.getElementById("kpi-intervencion");
 
-  const todasLasIntervenciones = [];
-  filtrados.forEach((s) => {
-    String(s.intervencion || "")
-      .split("+")
-      .map((x) => x.trim())
-      .filter(Boolean)
-      .forEach((p) => todasLasIntervenciones.push(p));
-  });
+  const todasInt = [];
+  filtrados.forEach((s) => s.intervencion.split("+").forEach((p) => todasInt.push(p.trim())));
 
   if (kTotal) kTotal.textContent = filtrados.length;
   if (kSubTotal) kSubTotal.textContent = `De ${servicios.length} registrados en total`;
   if (kCat) kCat.textContent = calcularModa(filtrados.map((s) => s.categoria));
   if (kMarca) kMarca.textContent = calcularModa(filtrados.map((s) => s.marca));
-  if (kInt) kInt.textContent = calcularModa(todasLasIntervenciones);
+  if (kInt) kInt.textContent = calcularModa(todasInt.filter(Boolean));
 }
 
 // ============================================================================
@@ -1398,109 +791,75 @@ window.procesarLogin = function (e) {
 
 window.bloquearSistema = function () {
   sessionStorage.removeItem(AUTH_SESSION_KEY);
+  bovedaDesbloqueada = false;
   const app = document.getElementById("app-contenido");
   app.classList.add("hidden");
   app.style.display = "none";
   document.getElementById("pantalla-login").style.display = "flex";
-  document.getElementById("inp-password")?.focus();
-};
-
-window.limpiarFiltros = function () {
-  ["filtro-texto", "filtro-categoria", "filtro-marca", "filtro-intervencion", "filtro-fecha"].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.value = "";
-  });
-  aplicarFiltros();
-};
-
-window.abrirModalNuevoRegistro = function () {
-  document.getElementById("form-servicio")?.reset();
-  document.getElementById("inp-edit-id").value = "";
-  document.getElementById("titulo-modal-registro").textContent = "Registrar Nuevo Servicio Técnico";
-  const inpFecha = document.getElementById("inp-fecha");
-  if (inpFecha) inpFecha.valueAsDate = new Date();
-  document.getElementById("error-intervencion").classList.add("hidden");
-  mostrarModal("modal-registro");
 };
 
 window.abrirEditarServicio = function (id) {
   const item = servicios.find((s) => s.id === id);
   if (!item) return;
-
   document.getElementById("titulo-modal-registro").textContent = `Editar Servicio ${item.id}`;
   document.getElementById("inp-edit-id").value = item.id;
   document.getElementById("inp-fecha").value = convertirFechaAYYYYMMDD(item.fecha);
-
-  const selCat = document.getElementById("inp-categoria");
-  if (selCat) {
-    const existe = Array.from(selCat.options).some((o) => o.value === item.categoria);
-    if (!existe && item.categoria) {
-      const opt = document.createElement("option");
-      opt.value = item.categoria;
-      opt.textContent = item.categoria;
-      selCat.appendChild(opt);
-    }
-    selCat.value = item.categoria;
-  }
-
+  document.getElementById("inp-categoria").value = item.categoria;
   document.getElementById("inp-marca").value = item.marca;
   document.getElementById("inp-modelo").value = item.modelo;
   document.getElementById("inp-trabajo").value = item.trabajo;
-  document.getElementById("inp-repuestos").value = item.repuestos === "Ninguno" ? "" : (item.repuestos || "");
+  document.getElementById("inp-repuestos").value = item.repuestos === "Ninguno" ? "" : item.repuestos;
   document.getElementById("inp-precio").value = item.precio || "";
   document.getElementById("inp-notas").value = item.notas === "-" ? "" : (item.notas || "");
 
   const partes = String(item.intervencion || "").split("+").map((x) => x.trim());
-  const checks = document.querySelectorAll('input[name="intervencion-check"]');
-  let marcoAlguno = false;
-  checks.forEach((chk) => {
-    const coincide = partes.includes(chk.value);
-    chk.checked = coincide;
-    if (coincide) marcoAlguno = true;
+  document.querySelectorAll('input[name="intervencion-check"]').forEach((chk) => {
+    chk.checked = partes.includes(chk.value);
   });
-  if (!marcoAlguno && checks.length > 0) checks[0].checked = true;
 
   document.getElementById("error-intervencion").classList.add("hidden");
   mostrarModal("modal-registro");
   setTimeout(() => document.getElementById("inp-precio")?.focus(), 80);
 };
 
+window.eliminarServicio = async function (id) {
+  if (!confirm(`¿Seguro que deseas eliminar permanentemente el registro ${id}? (Se borrará también de Supabase)`)) return;
+  servicios = servicios.filter((s) => s.id !== id);
+  localStorage.setItem(CACHE_LOCAL_KEY, JSON.stringify(servicios));
+  poblarSelectores();
+  aplicarFiltros();
+  if (bovedaDesbloqueada) renderizarPanelIngresos();
+  await eliminarServicioSupabase(id);
+};
+
 window.cerrarModalRegistro = function () {
   ocultarModal("modal-registro");
+};
+
+window.abrirModalNuevoRegistro = function () {
+  document.getElementById("form-servicio")?.reset();
+  document.getElementById("inp-edit-id").value = "";
+  document.getElementById("titulo-modal-registro").textContent = "Registrar Nuevo Servicio Técnico";
+  const f = document.getElementById("inp-fecha");
+  if (f) f.valueAsDate = new Date();
+  document.getElementById("error-intervencion").classList.add("hidden");
+  mostrarModal("modal-registro");
 };
 
 window.guardarServicioIndividual = async function (e) {
   e.preventDefault();
   const checks = Array.from(document.querySelectorAll('input[name="intervencion-check"]:checked')).map((c) => c.value);
-  const errorInt = document.getElementById("error-intervencion");
   if (checks.length === 0) {
-    errorInt.classList.remove("hidden");
+    document.getElementById("error-intervencion").classList.remove("hidden");
     return;
   }
-  errorInt.classList.add("hidden");
 
   const editId = document.getElementById("inp-edit-id").value.trim().toUpperCase();
   const trabajoRaw = document.getElementById("inp-trabajo").value.trim();
-  const notasInputRaw = document.getElementById("inp-notas")?.value.trim() || "";
-  const pInput = document.getElementById("inp-precio")?.value.trim() || "";
-
-  // Extrae precio y cliente automáticamente si se escribieron dentro del trabajo o notas
-  const extPrecioTrabajo = extraerPrecioDeTexto(trabajoRaw);
-  const extPrecioNotas = extraerPrecioDeTexto(notasInputRaw);
-  const precioFinal = pInput
-    ? formatearGuaranies(pInput)
-    : (extPrecioTrabajo.precio || extPrecioNotas.precio || "");
-
-  let trabajoTxt = extPrecioTrabajo.precio ? extPrecioTrabajo.textoSinPrecio : trabajoRaw;
-  let notasTxt = (extPrecioNotas.precio && !pInput) ? extPrecioNotas.textoSinPrecio : notasInputRaw;
-
-  if (!notasTxt) {
-    const extCli = extraerClienteDeTexto(trabajoTxt);
-    if (extCli.cliente) {
-      notasTxt = extCli.cliente;
-      if (extCli.textoSinCliente) trabajoTxt = extCli.textoSinCliente;
-    }
-  }
+  const ext = extraerPrecioDeTexto(trabajoRaw);
+  const pInput = document.getElementById("inp-precio")?.value.trim();
+  const precioFinal = pInput ? formatearGuaranies(pInput) : ext.precio;
+  const trabajoTxt = ext.precio ? ext.textoSinPrecio : trabajoRaw;
 
   const datosBase = {
     id: editId || generarNuevoID(1),
@@ -1513,22 +872,15 @@ window.guardarServicioIndividual = async function (e) {
     repuestos: document.getElementById("inp-repuestos").value.trim() || deducirRepuestos(trabajoTxt),
     precio: precioFinal,
     estado: "Entregado",
-    notas: notasTxt,
+    notas: document.getElementById("inp-notas").value.trim(),
     tecnico: TECNICO_NOMBRE
   };
 
   if (!editId) {
-    const duplicadosPrevios = verificarDuplicadoIndividual(datosBase);
-    if (duplicadosPrevios.length > 0) {
-      const detalle = duplicadosPrevios
-        .map((d) => `• ${d.id} (${d.fecha}): ${d.marca} ${d.modelo} - ${d.trabajo} ${d.precio ? `[${d.precio}]` : ""}`)
-        .join("\n");
-      const confirmar = confirm(
-        `⚠️ ALERTA DE SERVICIO REPETIDO EN LA MISMA FECHA (${datosBase.fecha}):\n\n` +
-        `Ya existe(n) registro(s) muy similar(es) ese mismo día:\n${detalle}\n\n` +
-        `¿Confirmas que es otro dispositivo distinto (Aceptar) o cancelar?`
-      );
-      if (!confirmar) return;
+    const dups = verificarDuplicadoIndividual(datosBase);
+    if (dups.length > 0) {
+      const str = dups.map((d) => `• ${d.id} (${d.fecha}): ${d.marca} ${d.modelo} - ${d.trabajo}`).join("\n");
+      if (!confirm(`⚠️ Posible servicio repetido en la fecha ${datosBase.fecha}:\n\n${str}\n\n¿Guardar de todos modos?`)) return;
     }
   }
 
@@ -1544,166 +896,179 @@ window.guardarServicioIndividual = async function (e) {
   localStorage.setItem(CACHE_LOCAL_KEY, JSON.stringify(servicios));
   poblarSelectores();
   aplicarFiltros();
+  if (bovedaDesbloqueada) renderizarPanelIngresos();
+
   e.target.reset();
   ocultarModal("modal-registro");
-
   await guardarServicioSupabase(regNorm);
 };
 
-window.eliminarServicio = async function (id) {
-  if (!confirm(`¿Seguro que deseas eliminar permanentemente el registro ${id}? (Se borrará también de Supabase)`)) return;
-  servicios = servicios.filter((s) => s.id !== id);
-  localStorage.setItem(CACHE_LOCAL_KEY, JSON.stringify(servicios));
-  poblarSelectores();
-  aplicarFiltros();
-  await eliminarServicioSupabase(id);
+// ============================================================================
+// EXTRACCIÓN DE CLIENTE DESDE LA DESCRIPCIÓN
+// ============================================================================
+const PALABRAS_TECNICAS_NO_CLIENTE = new Set([
+  "carga", "cabezal", "cabezales", "tinta", "tintas", "cartucho", "cartuchos",
+  "almohadilla", "almohadillas", "teclado", "teclados", "pantalla", "pantallas",
+  "display", "tactil", "vidrio", "glass", "bateria", "baterias", "placa", "placas",
+  "madre", "motherboard", "flex", "cable", "cables", "pin", "pines", "puerto",
+  "puertos", "conector", "conectores", "disco", "discos", "duro", "ssd", "hdd",
+  "ram", "memoria", "memorias", "sistema", "operativo", "software", "hardware",
+  "windows", "linux", "office", "word", "excel", "autocad", "photoshop", "corel",
+  "coreldraw", "canva", "drivers", "driver", "programas", "programa", "aplicacion",
+  "app", "flujo", "xuper", "datos", "archivos", "fotos", "fotografias", "cuentas",
+  "cuenta", "google", "icloud", "frp", "firmware", "bios", "contador", "contadores",
+  "color", "negro", "negra", "amarillo", "cian", "magenta", "impresora", "impresoras",
+  "notebook", "laptop", "laptops", "pc", "escritorio", "servidor", "monitor",
+  "monitores", "tv", "smart", "box", "stick", "celular", "celulares", "telefono",
+  "telefonos", "smartphone", "parlante", "parlantes", "reloj", "smartwatch",
+  "gps", "plotter", "sublimacion", "cameo", "jarra", "termica", "pasta", "cooler",
+  "ventilador", "bisagra", "bisagras", "carcasa", "tapa", "camara", "web", "audio",
+  "video", "red", "redes", "wifi", "internet", "fuente", "poder", "corriente",
+  "encendido", "socket", "cpu", "procesador", "gpu", "grafica", "hojas", "hoja",
+  "papel", "arrastre", "mecanismo", "toner", "drum", "fusor", "rodillo", "sensor",
+  "motor", "encoder", "circular", "damper", "dampers", "continuo", "imagenes",
+  "documentos", "radiografia", "estado", "mantenimiento", "limpieza", "reparacion",
+  "cambio", "instalacion", "configuracion", "revision", "diagnostico", "reset",
+  "recarga", "traspaso", "respaldo", "backup", "desbloqueo", "actualizacion",
+  "impresion", "escaneo", "hp", "epson", "brother", "canon", "acer", "asus", "dell",
+  "lenovo", "samsung", "galaxy", "xiaomi", "redmi", "poco", "iphone", "apple",
+  "motorola", "moto", "honor", "jbl", "amazon", "amazfit", "silhouette", "ofimatica",
+  "oficina", "cd", "dvd", "usb", "hdmi", "vga", "completo", "completa", "general",
+  "preventivo", "interno", "interna", "externo", "externa", "nuevo", "nueva",
+  "roto", "rota", "corto", "agua", "humedad", "calor", "luz", "unidad", "modulo",
+  "fpc", "chip", "smd", "soldadura", "resoldado", "formateo", "activacion", "licencia",
+  "android", "ios", "mac", "macbook", "tablet", "consola", "router", "modem",
+  "cargador", "adaptador", "escaner", "scanner", "multifuncional", "laser", "ecotank",
+  "y", "e", "o", "u", "con", "sin", "por", "en", "a", "al", "el", "la", "los", "las",
+  "un", "una", "que", "no", "mas", "muy", "todo", "todos", "sus", "su"
+]);
+
+function capitalizarCliente(nombre) {
+  return String(nombre || "")
+    .trim()
+    .split(/\s+/)
+    .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1) : ""))
+    .join(" ");
+}
+
+function extraerClienteDeTexto(textoCrudo) {
+  let texto = String(textoCrudo || "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[|\s]+$/, "")
+    .trim();
+  let cliente = "";
+
+  // 1. Formato explícito: "cliente: Derlis", "(cliente Derlis)", "- cli: Derlis"
+  const regexExplicito = /(?:\s*[-–|,(]?\s*)\b(?:cliente|cli)\s*[:\-]?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ0-9.\s]{1,35}?)\s*\)?$/i;
+  let m = texto.match(regexExplicito);
+  if (m) {
+    cliente = capitalizarCliente(m[1]);
+    texto = texto.slice(0, m.index).replace(/[-–|,(\s]+$/, "").trim();
+    return { textoSinCliente: texto, cliente };
+  }
+
+  // 2. Formato entre corchetes al final: "... [Derlis]"
+  const regexCorchetes = /\s*\[\s*([^\]]{2,40})\s*\]\s*$/;
+  m = texto.match(regexCorchetes);
+  if (m) {
+    cliente = capitalizarCliente(m[1]);
+    texto = texto.slice(0, m.index).replace(/[-–|,\s]+$/, "").trim();
+    return { textoSinCliente: texto, cliente };
+  }
+
+  // 3. Formato separado por barra vertical: "reparar monitor Dell | Derlis"
+  const regexPipe = /^(.+?)\s*\|\s*([^|]{2,40})$/;
+  m = texto.match(regexPipe);
+  if (m) {
+    cliente = capitalizarCliente(m[2]);
+    texto = m[1].trim();
+    return { textoSinCliente: texto, cliente };
+  }
+
+  // 4. Formato natural al final: "... de Derlis", "... de Don Carlos", "... para Juan Pérez"
+  const regexNatural = /^(.+)\s+(?:de(?:\s+la)?|del|para)\s+((?:(?:sr\.?|sra\.?|don|doña|dona|prof\.?|lic\.?|dr\.?|dra\.?|ing\.?)\s+)?[A-ZÁÉÍÓÚÑa-záéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ.]{1,25}(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ.]{1,25})?)$/i;
+  m = texto.match(regexNatural);
+  if (m) {
+    const posibleTrabajo = m[1].trim();
+    const posibleCliente = m[2].trim();
+    const palabras = posibleCliente
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\./g, "")
+      .split(/\s+/)
+      .filter(Boolean);
+
+    const tieneTratamiento = /^(sr|sra|don|dona|prof|lic|dr|dra|ing)$/.test(palabras[0]);
+    const contienePalabraTecnica = palabras.some((p) => PALABRAS_TECNICAS_NO_CLIENTE.has(p));
+
+    if (posibleTrabajo.length >= 4 && (tieneTratamiento || !contienePalabraTecnica)) {
+      cliente = capitalizarCliente(posibleCliente);
+      texto = posibleTrabajo.replace(/[-–:,\s]+$/, "").trim();
+    }
+  }
+
+  return { textoSinCliente: texto, cliente };
+}
+
+// ============================================================================
+// CARGA RÁPIDA SEMANAL (INTERFAZ COMPLETA + DETECTOR DE PRECIOS, CLIENTES Y DUPLICADOS)
+// ============================================================================
+window.abrirModalCargaLote = function () {
+  document.getElementById("inp-lunes-lote").value = obtenerLunesActualYYYYMMDD();
+  document.getElementById("inp-texto-lote").value = "";
+  document.getElementById("contenedor-preview-lote").classList.add("hidden");
+  document.getElementById("contenedor-resumen-dias").classList.add("hidden");
+  const alerta = document.getElementById("alerta-duplicados-lote");
+  if (alerta) alerta.className = "hidden";
+  document.getElementById("resumen-lote").textContent = "";
+  document.getElementById("btn-guardar-lote").disabled = true;
+  loteTemporal = [];
+  mostrarModal("modal-lote");
+  inicializarIconos();
 };
 
-// ============================================================================
-// MOTOR INTELIGENTE DE CARGA RÁPIDA SEMANAL (EQUIPOS + PRECIOS GS + CLIENTES)
-// ============================================================================
-function detectarEquipoEnTexto(texto) {
-  const tLow = texto.toLowerCase();
+window.cerrarModalLote = function () {
+  ocultarModal("modal-lote");
+};
 
-  let marca = "";
-  if (tLow.includes("samsung") || /\b(galaxy|a\d{2}[s]?|j\d|s2\d|m\d{2})\b/i.test(texto)) marca = "Samsung";
-  else if (tLow.includes("xiaomi") || tLow.includes("redmi") || tLow.includes("poco")) marca = "Xiaomi";
-  else if (tLow.includes("iphone") || tLow.includes("apple")) marca = "Apple";
-  else if (tLow.includes("motorola") || tLow.includes("moto ")) marca = "Motorola";
-  else if (tLow.includes("honor")) marca = "Honor";
-  else if (tLow.includes("realme")) marca = "Realme";
-  else if (tLow.includes("huawei")) marca = "Huawei";
-  else if (tLow.includes("tecno") || tLow.includes("spark")) marca = "Tecno";
-  else if (tLow.includes("nokia")) marca = "Nokia";
-  else if (tLow.includes("tcl")) marca = "TCL";
-  else if (tLow.includes("jbl")) marca = "JBL";
-  else if (tLow.includes("epson") || /\bl3\d{2,3}\b/i.test(texto)) marca = "Epson";
-  else if (tLow.includes("hp")) marca = "HP";
-  else if (tLow.includes("brother")) marca = "Brother";
-  else if (tLow.includes("acer")) marca = "Acer";
-  else if (tLow.includes("asus")) marca = "Asus";
-  else if (tLow.includes("dell")) marca = "Dell";
-  else if (tLow.includes("lenovo")) marca = "Lenovo";
+function evaluarDuplicadosEnLote(listaLote) {
+  return listaLote.map((item, idx) => {
+    const fItem = item.fecha;
+    const marcaItem = limpiarTextoComparacion(item.marca);
+    const modeloItem = limpiarTextoComparacion(item.modelo);
+    const trabajoItem = limpiarTextoComparacion(item.trabajo);
+    const alertas = [];
 
-  let categoria = "Smartphone";
-  if (tLow.includes("impresora") || tLow.includes("epson") || tLow.includes("cabezal") || tLow.includes("almohadilla") || tLow.includes("cartucho")) {
-    categoria = "Impresora";
-  } else if (tLow.includes("laptop") || tLow.includes("notebook") || tLow.includes("acer") || tLow.includes("asus")) {
-    categoria = "Laptop";
-  } else if (tLow.includes("pc ") || tLow.includes("dell") || tLow.includes("office") || tLow.includes("sistema")) {
-    categoria = "PC / Software";
-  } else if (tLow.includes("disco hdd") || tLow.includes("sacar datos de disco")) {
-    categoria = "Almacenamiento";
-  } else if (tLow.includes("jbl") || tLow.includes("parlante") || tLow.includes("auricular")) {
-    categoria = "Audio / Parlante";
-  } else if (tLow.includes("tablet") || tLow.includes("ipad") || tLow.includes("pad")) {
-    categoria = "Tablet";
-  } else if (tLow.includes("nokia")) {
-    categoria = "Celular Básico";
-  }
-
-  let modelo = "";
-  const matchTraspaso = texto.match(/([a-zA-Z0-9]+\s+a\s+[a-zA-Z0-9]+)/i);
-  const matchEpson = texto.match(/\b(L\d{3,4})\b/i);
-  const matchGalaxy = texto.match(/\b(Galaxy\s+[A-Z0-9]+(?:\s+(?:Core|Plus|Ultra|FE|5G|4G))*|A\d{2}[a-z]?(?:\s+5G)?|S\d{2}\s*(?:FE|Plus|Ultra)?|J\d\s*(?:Neo|Pro)?|M\d{2})\b/i);
-  const matchRedmiPoco = texto.match(/\b((?:Redmi|Poco)\s+[A-Za-z0-9]+(?:\s+(?:Note|Pro|Plus|Max|Ultra|5G|4G|S|C|\d+[A-Za-z+]*))*)\b/i);
-  const matchIphone = texto.match(/\b(iPhone\s*\d+\s*(?:Pro\s*Max|Pro|Plus|Mini|XR|XS)?)\b/i);
-  const matchMoto = texto.match(/\b(Moto\s*[A-Z0-9]+\s*(?:Power|Plus|Play)?)\b/i);
-
-  if (tLow.includes("a samsung") || tLow.includes("a redmi") || tLow.includes("a honor") || tLow.includes("a iphone")) {
-    if (tLow.includes("samsung a samsung")) modelo = "Samsung a Samsung";
-    else if (tLow.includes("redmi a redmi")) modelo = "Redmi a Redmi";
-    else if (tLow.includes("honor a honor")) modelo = "Honor a Honor";
-    else if (matchTraspaso) modelo = matchTraspaso[1];
-  } else if (matchEpson) {
-    modelo = `EcoTank ${matchEpson[1].toUpperCase()}`;
-  } else if (matchIphone) {
-    modelo = matchIphone[1];
-  } else if (matchRedmiPoco) {
-    modelo = matchRedmiPoco[1].replace(/\b(redmi|poco|note|pro|plus|max|ultra|5g|4g)\b/gi, (m) =>
-      m.length <= 2 ? m.toUpperCase() : m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()
+    const enBD = servicios.filter((s) =>
+      s.fecha === fItem &&
+      limpiarTextoComparacion(s.marca) === marcaItem &&
+      limpiarTextoComparacion(s.modelo) === modeloItem &&
+      limpiarTextoComparacion(s.trabajo) === trabajoItem
     );
-  } else if (matchGalaxy) {
-    const g = matchGalaxy[1];
-    modelo = g.toLowerCase().startsWith("galaxy") ? g : `Galaxy ${g.toUpperCase()}`;
-  } else if (matchMoto) {
-    modelo = matchMoto[1];
-  }
+    if (enBD.length > 0) alertas.push(`Ya existe en BD (${enBD.map((x) => x.id).join(", ")})`);
 
-  return { tieneMarcaOModelo: Boolean(marca || modelo), categoria, marca: marca || "Genérico", modelo };
+    listaLote.forEach((otro, otroIdx) => {
+      if (otroIdx !== idx && otro.fecha === fItem &&
+          limpiarTextoComparacion(otro.marca) === marcaItem &&
+          limpiarTextoComparacion(otro.modelo) === modeloItem &&
+          limpiarTextoComparacion(otro.trabajo) === trabajoItem) {
+        alertas.push(`Repetido con Fila #${otroIdx + 1}`);
+      }
+    });
+
+    return { ...item, alertasDuplicado: alertas };
+  });
 }
 
-function contienePalabrasDeTrabajo(texto) {
-  const t = texto.toLowerCase();
-  const palabrasTrabajo = [
-    "placa de carga", "flex de carga", "flex carga", "pin de carga", "puerto de carga",
-    "cambio", "cambiar", "reparación", "reparacion", "reparar", "ajuste", "limpieza",
-    "mantenimiento", "desbloqueo", "frp", "flasheo", "pasar", "traspaso", "sacar",
-    "recuperar", "recuperación", "iniciar", "actualizar", "instalar", "instalación",
-    "configuración", "reset", "placa", "flex", "pin", "pantalla", "módulo", "modulo",
-    "batería", "bateria", "tapa", "housing", "botón", "boton", "cámara", "camara",
-    "cabezal", "almohadilla", "cartucho", "disco", "ssd", "hdd", "sistema", "office",
-    "no encendía", "no encendia", "humedad", "resoldado", "fpc", "ic", "micrófono",
-    "microfono", "auricular", "parlante", "software", "firmware", "recarga"
-  ];
-  return palabrasTrabajo.some((p) => t.includes(p));
-}
+window.analizarLote = function () {
+  const texto = document.getElementById("inp-texto-lote").value.trim();
+  if (!texto) return alert("Pega primero la lista de servicios.");
 
-function construirRegistroDesdeLinea(lineaTrabajoRaw, fechaActual, contextoEquipo, clientePendiente = "") {
-  const textoLimpio = lineaTrabajoRaw.replace(/^[-*•\d.)\s]+/, "").trim();
-  if (!textoLimpio) return null;
-
-  // 1. Extraer precio en cualquier parte de la línea
-  const { textoSinPrecio, precio } = extraerPrecioDeTexto(textoLimpio);
-
-  // 2. Extraer cliente del texto restante
-  const { textoSinCliente, cliente } = extraerClienteDeTexto(textoSinPrecio);
-  const texto = textoSinCliente || textoSinPrecio || textoLimpio;
-  let notas = cliente || clientePendiente || "";
-
-  // 3. Detectar equipo y heredar contexto si corresponde
-  const eqDetectado = detectarEquipoEnTexto(texto);
-  let categoria = eqDetectado.categoria;
-  let marca = eqDetectado.marca;
-  let modelo = eqDetectado.modelo;
-
-  if (!eqDetectado.tieneMarcaOModelo && contextoEquipo) {
-    categoria = contextoEquipo.categoria;
-    marca = contextoEquipo.marca;
-    modelo = contextoEquipo.modelo;
-    if (!notas && contextoEquipo.notas) notas = contextoEquipo.notas;
-  } else if (!modelo) {
-    if (categoria === "Almacenamiento") modelo = "Disco Duro HDD";
-    else if (categoria === "Laptop") modelo = `Laptop ${marca}`;
-    else if (categoria === "PC / Software") modelo = `PC ${marca}`;
-    else if (marca === "JBL") modelo = "Parlante JBL";
-    else if (categoria === "Smartphone" && marca === "Genérico") modelo = "Smartphone Android";
-    else modelo = marca;
-  }
-
-  const trabajoFinal = texto.charAt(0).toUpperCase() + texto.slice(1);
-  return {
-    fecha: fechaActual,
-    diaSemana: obtenerDiaSemana(fechaActual),
-    categoria,
-    marca,
-    modelo,
-    intervencion: deducirIntervencion(trabajoFinal),
-    trabajo: trabajoFinal,
-    repuestos: deducirRepuestos(trabajoFinal),
-    precio: precio || "",
-    estado: "Entregado",
-    notas,
-    tecnico: TECNICO_NOMBRE
-  };
-}
-
-function procesarTextoLote(textoCompleto, fechaLunesYYYYMMDD) {
-  const lineas = textoCompleto.split(/\r?\n/);
-  const anioBase = fechaLunesYYYYMMDD.split("-")[0] || "2026";
-  let fechaCurso = sumarDiasAFecha(fechaLunesYYYYMMDD, 0);
-  let contextoEquipoActual = null;
-  let clientePendiente = "";
+  const lineas = texto.split(/\r?\n/);
+  const fechaLunes = document.getElementById("inp-lunes-lote").value || obtenerLunesActualYYYYMMDD();
+  let fCurso = normalizarFecha(fechaLunes);
+  let ctxEquipo = null;
   const resultados = [];
 
   const mapaDias = [
@@ -1716,302 +1081,206 @@ function procesarTextoLote(textoCompleto, fechaLunesYYYYMMDD) {
     { regex: /^domingo\b/i, offset: 6 }
   ];
 
-  for (const raw of lineas) {
-    let l = raw.trim();
+  for (let l of lineas) {
+    l = l.trim();
     if (!l) continue;
 
-    // Encabezado de fecha sola: "16/11" o "16/11/2026:"
-    const matchHeaderFecha = l.match(/^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s*:?$/);
-    if (matchHeaderFecha) {
-      fechaCurso = normalizarFechaNumericaCorta(matchHeaderFecha[1], anioBase);
-      contextoEquipoActual = null;
-      clientePendiente = "";
-      continue;
-    }
-
-    // Encabezado de día: "lunes:", "martes 17/11:"
     let cambioDia = false;
     for (const d of mapaDias) {
       if (d.regex.test(l)) {
-        const resto = l.replace(d.regex, "").replace(/^[\s:–-]+/, "").trim();
-        const matchFechaJuntoADia = resto.match(/^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s*:?\s*(.*)$/);
-        if (matchFechaJuntoADia) {
-          fechaCurso = normalizarFechaNumericaCorta(matchFechaJuntoADia[1], anioBase);
-          l = matchFechaJuntoADia[2].trim();
-        } else {
-          fechaCurso = sumarDiasAFecha(fechaLunesYYYYMMDD, d.offset);
-          l = resto;
-        }
-        contextoEquipoActual = null;
-        clientePendiente = "";
+        const [y, m, day] = fechaLunes.split("-").map(Number);
+        const f = new Date(y, m - 1, day + d.offset);
+        fCurso = `${String(f.getDate()).padStart(2, "0")}/${String(f.getMonth() + 1).padStart(2, "0")}/${f.getFullYear()}`;
+        l = l.replace(d.regex, "").replace(/^[\s:–-]+/, "").trim();
+        ctxEquipo = null;
         cambioDia = true;
         break;
       }
     }
     if (cambioDia && !l) continue;
 
-    // Fecha al inicio de la línea: "16/11 - Samsung A13..."
-    const matchFechaEnLinea = l.match(/^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s*[-:–]\s*(.+)$/);
-    if (matchFechaEnLinea) {
-      fechaCurso = normalizarFechaNumericaCorta(matchFechaEnLinea[1], anioBase);
-      l = matchFechaEnLinea[2].trim();
-    }
-
-    // Revisar si la línea es SOLO un precio (ej. "120.000gs" en la línea siguiente)
-    const { textoSinPrecio, precio } = extraerPrecioDeTexto(l);
-    if (!textoSinPrecio && precio) {
-      if (resultados.length > 0 && !resultados[resultados.length - 1].precio) {
-        resultados[resultados.length - 1].precio = precio;
-      }
+    // Fecha sola en una línea (ej: "18/11/2029:" o "18/11/2026")
+    const matchFechaSola = l.match(/^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)[\s:–-]*$/);
+    if (matchFechaSola) {
+      fCurso = normalizarFecha(matchFechaSola[1]);
+      ctxEquipo = null;
       continue;
     }
 
-    // Revisar si la línea es SOLO un cliente (ej. "Cliente: Ana" o "de Derlis" en línea propia)
+    // Fecha + servicio en la misma línea (ej: "18/11/2026 - cambio de teclado 50.000gs")
+    const matchFecha = l.match(/^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s*[-:–]\s*(.+)$/);
+    if (matchFecha) {
+      fCurso = normalizarFecha(matchFecha[1]);
+      l = matchFecha[2].trim();
+    }
+
+    const lineaSinVineta = l.replace(/^(?:[-*•]+|\d+[.)])\s*/, "").trim();
+    const { textoSinPrecio, precio } = extraerPrecioDeTexto(lineaSinVineta);
+    if (!textoSinPrecio) continue;
+
     const { textoSinCliente, cliente } = extraerClienteDeTexto(textoSinPrecio);
-    if (!textoSinCliente && cliente) {
-      if (contextoEquipoActual && !contextoEquipoActual.notas) {
-        contextoEquipoActual.notas = cliente;
-      } else if (resultados.length > 0 && resultados[resultados.length - 1].fecha === fechaCurso && !resultados[resultados.length - 1].notas && !/^cliente\b/i.test(l)) {
-        resultados[resultados.length - 1].notas = cliente;
-      } else {
-        clientePendiente = cliente;
-      }
+    const descFinal = textoSinCliente || textoSinPrecio;
+
+    let marcaF = "Genérico";
+    let catF = "Notebook / Laptop";
+    let modF = "";
+    const tLow = descFinal.toLowerCase();
+
+    if (tLow.includes("epson") || /\bl3\d{2,3}\b/i.test(descFinal)) marcaF = "Epson";
+    else if (tLow.includes("hp")) marcaF = "HP";
+    else if (tLow.includes("brother")) marcaF = "Brother";
+    else if (tLow.includes("canon")) marcaF = "Canon";
+    else if (tLow.includes("acer")) marcaF = "Acer";
+    else if (tLow.includes("asus")) marcaF = "Asus";
+    else if (tLow.includes("dell")) marcaF = "Dell";
+    else if (tLow.includes("lenovo")) marcaF = "Lenovo";
+    else if (tLow.includes("samsung") || /\b(galaxy|a\d{2}[s]?|j\d|s2\d|m\d{2})\b/i.test(descFinal)) marcaF = "Samsung";
+    else if (tLow.includes("xiaomi") || tLow.includes("redmi") || tLow.includes("poco")) marcaF = "Xiaomi";
+    else if (tLow.includes("iphone") || tLow.includes("apple")) marcaF = "Apple";
+    else if (tLow.includes("motorola") || tLow.includes("moto ")) marcaF = "Motorola";
+    else if (tLow.includes("honor")) marcaF = "Honor";
+    else if (tLow.includes("jbl")) marcaF = "JBL";
+
+    if (tLow.includes("impresora") || tLow.includes("epson") || tLow.includes("cabezal") || tLow.includes("cartucho") || tLow.includes("brother")) catF = "Impresora";
+    else if (tLow.includes("pc ") || tLow.includes("escritorio")) catF = "PC Escritorio / Servidor";
+    else if (tLow.includes("teléfono") || tLow.includes("telefono") || tLow.includes("celular") || tLow.includes("samsung") || tLow.includes("xiaomi") || tLow.includes("redmi") || tLow.includes("iphone") || tLow.includes("honor")) catF = "Smartphone";
+    else if (tLow.includes("tv") || tLow.includes("monitor")) catF = "Smart TV / Monitor";
+    else if (tLow.includes("jbl") || tLow.includes("parlante")) catF = "Audio / Consola / Portátil";
+    else if (tLow.includes("disco") || tLow.includes("hdd")) catF = "Almacenamiento";
+
+    const matchEpson = descFinal.match(/\b(L\d{3,4})\b/i);
+    const matchIphone = descFinal.match(/\b(iPhone\s*\d+\s*(?:Pro\s*Max|Pro|Plus|Mini|XR|XS)?)\b/i);
+    const matchGalaxy = descFinal.match(/\b(Galaxy\s+[A-Z0-9]+|A\d{2}[a-z]?|S\d{2})\b/i);
+    if (matchEpson) modF = `EcoTank ${matchEpson[1].toUpperCase()}`;
+    else if (matchIphone) modF = matchIphone[1];
+    else if (matchGalaxy) modF = matchGalaxy[1].toLowerCase().startsWith("galaxy") ? matchGalaxy[1] : `Galaxy ${matchGalaxy[1].toUpperCase()}`;
+
+    const tieneM = marcaF !== "Genérico" || modF !== "";
+    const palabrasTrabajo = ["cambio", "reparación", "reparacion", "reparar", "mantenimiento", "desbloqueo", "pasar", "limpieza", "instalación", "instalacion", "actualizar", "recarga", "reset", "placa", "flex", "pin", "pantalla", "bateria", "batería", "teclado", "ssd", "ram"];
+    const tieneT = palabrasTrabajo.some((p) => tLow.includes(p));
+
+    if (tieneM && !tieneT && !precio && !cliente) {
+      ctxEquipo = { categoria: catF, marca: marcaF, modelo: modF || marcaF };
       continue;
     }
 
-    // Encabezado de equipo con o sin cliente (ej. "Xiaomi poco M4 pro 5G - Ana")
-    const eqInfo = detectarEquipoEnTexto(textoSinCliente || textoSinPrecio);
-    const tieneTrabajo = contienePalabrasDeTrabajo(textoSinCliente || textoSinPrecio);
-
-    if (eqInfo.tieneMarcaOModelo && !tieneTrabajo && !precio) {
-      contextoEquipoActual = {
-        categoria: eqInfo.categoria,
-        marca: eqInfo.marca,
-        modelo: eqInfo.modelo || eqInfo.marca,
-        notas: cliente || clientePendiente || ""
-      };
-      clientePendiente = "";
-      continue;
+    if (!tieneM && ctxEquipo) {
+      catF = ctxEquipo.categoria;
+      marcaF = ctxEquipo.marca;
+      modF = ctxEquipo.modelo;
+    } else if (!modF) {
+      modF = marcaF;
     }
 
-    const item = construirRegistroDesdeLinea(l, fechaCurso, contextoEquipoActual, clientePendiente);
-    if (item) {
-      clientePendiente = "";
-      if (eqInfo.tieneMarcaOModelo) {
-        contextoEquipoActual = {
-          categoria: item.categoria,
-          marca: item.marca,
-          modelo: item.modelo,
-          notas: item.notas
-        };
-      }
-      resultados.push(item);
-    }
+    resultados.push({
+      fecha: fCurso,
+      diaSemana: obtenerDiaSemana(fCurso),
+      categoria: catF,
+      marca: marcaF,
+      modelo: modF,
+      intervencion: deducirIntervencion(descFinal),
+      trabajo: descFinal.charAt(0).toUpperCase() + descFinal.slice(1),
+      repuestos: deducirRepuestos(descFinal),
+      precio: precio || "",
+      cliente: cliente || ""
+    });
+
+    if (tieneM) ctxEquipo = { categoria: catF, marca: marcaF, modelo: modF };
   }
 
-  return evaluarDuplicadosEnLote(resultados);
-}
-
-// Permite corregir precio o cliente directo en la vista previa antes de guardar
-window.actualizarCampoLote = function (idx, campo, valor) {
-  if (!loteTemporal[idx]) return;
-  if (campo === "precio") {
-    const limpio = String(valor || "").trim();
-    loteTemporal[idx].precio = limpio ? (formatearGuaranies(limpio) || limpio) : "";
-  } else if (campo === "notas") {
-    loteTemporal[idx].notas = String(valor || "").trim();
-  }
+  if (resultados.length === 0) return alert("No se detectaron líneas válidas.");
+  loteTemporal = evaluarDuplicadosEnLote(resultados);
   renderizarPreviewLote();
 };
 
 function renderizarPreviewLote() {
-  const tbodyPreview = document.getElementById("tbody-preview-lote");
-  const contPreview = document.getElementById("contenedor-preview-lote");
-  const contResumenDias = document.getElementById("contenedor-resumen-dias");
-  const gridResumenDias = document.getElementById("grid-resumen-dias");
-  const cajaAlertaDup = document.getElementById("alerta-duplicados-lote");
-  const resumen = document.getElementById("resumen-lote");
-  const btnGuardarLote = document.getElementById("btn-guardar-lote");
+  const tbody = document.getElementById("tbody-preview-lote");
+  const gridDias = document.getElementById("grid-resumen-dias");
+  const btn = document.getElementById("btn-guardar-lote");
+  const cajaAlerta = document.getElementById("alerta-duplicados-lote");
 
   if (loteTemporal.length === 0) {
-    contResumenDias?.classList.add("hidden");
-    contPreview?.classList.add("hidden");
-    if (cajaAlertaDup) cajaAlertaDup.className = "hidden";
-    if (resumen) resumen.textContent = "Sin servicios en lista.";
-    if (btnGuardarLote) btnGuardarLote.disabled = true;
+    document.getElementById("contenedor-preview-lote").classList.add("hidden");
+    document.getElementById("contenedor-resumen-dias").classList.add("hidden");
+    if (cajaAlerta) cajaAlerta.className = "hidden";
+    document.getElementById("resumen-lote").textContent = "";
+    btn.disabled = true;
     return;
   }
 
-  const gruposPorFecha = {};
-  let sumaTotalLote = 0;
-  let conClienteCount = 0;
+  const grupos = {};
+  let totalGs = 0;
   const itemsConAlerta = [];
 
   loteTemporal.forEach((item, idx) => {
-    const monto = obtenerMontoNumerico(item.precio);
-    sumaTotalLote += monto;
-    if (item.notas) conClienteCount++;
-    if (!gruposPorFecha[item.fecha]) {
-      gruposPorFecha[item.fecha] = {
-        dia: item.diaSemana || obtenerDiaSemana(item.fecha),
-        fecha: item.fecha,
-        subtotalGs: 0,
-        items: []
-      };
-    }
-    gruposPorFecha[item.fecha].subtotalGs += monto;
-    gruposPorFecha[item.fecha].items.push({ ...item, idx });
-    if (item.alertasDuplicado && item.alertasDuplicado.length > 0) {
-      itemsConAlerta.push({ idx: idx + 1, ...item });
-    }
+    const m = obtenerMontoNumerico(item.precio);
+    totalGs += m;
+    if (!grupos[item.fecha]) grupos[item.fecha] = { dia: item.diaSemana, fecha: item.fecha, subtotal: 0, items: [] };
+    grupos[item.fecha].subtotal += m;
+    grupos[item.fecha].items.push({ ...item, idx });
+    if (item.alertasDuplicado?.length) itemsConAlerta.push({ ...item, fila: idx + 1 });
   });
 
-  if (cajaAlertaDup) {
+  if (cajaAlerta) {
     if (itemsConAlerta.length > 0) {
-      cajaAlertaDup.className = "bg-amber-50 border-2 border-amber-400 rounded-xl p-4 space-y-2 shadow-sm";
-      cajaAlertaDup.innerHTML = `
-        <div class="flex items-start gap-2.5">
-          <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
-          <div class="space-y-1 flex-1">
-            <h4 class="text-xs sm:text-sm font-extrabold text-amber-900 uppercase tracking-wide">
-              ⚠️ Alerta: Se detectaron ${itemsConAlerta.length} servicio(s) repetido(s) en la misma fecha
-            </h4>
-            <p class="text-xs text-amber-800">
-              Verifica si se cargó dos veces por error o si son dos equipos distintos. Puedes quitar una fila con <strong>"Quitar"</strong> o continuar:
-            </p>
-            <ul class="text-xs text-amber-950 space-y-1 pt-1">
-              ${itemsConAlerta.map((al) => `
-                <li class="bg-white/90 px-2.5 py-1.5 rounded border border-amber-300 flex flex-wrap items-center justify-between gap-2">
-                  <span><strong>Fila #${al.idx} (${escapeHtml(al.fecha)} · ${escapeHtml(al.diaSemana)}):</strong> ${escapeHtml(al.marca)} ${escapeHtml(al.modelo)} — <em>${escapeHtml(al.trabajo)}</em></span>
-                  <span class="text-[11px] font-bold text-rose-700">${escapeHtml(al.alertasDuplicado.map((a) => a.mensaje).join(" | "))}</span>
-                </li>
-              `).join("")}
-            </ul>
-          </div>
-        </div>`;
+      cajaAlerta.className = "bg-amber-50 border-2 border-amber-400 rounded-xl p-4 space-y-2";
+      cajaAlerta.innerHTML = `<h4 class="text-xs font-black text-amber-900 uppercase">⚠️ ${itemsConAlerta.length} posible(s) repetido(s)</h4><ul class="text-xs space-y-1">${itemsConAlerta.map((a) => `<li class="p-1.5 bg-white border border-amber-300 rounded">Fila #${a.fila} (${a.fecha}): ${a.marca} ${a.modelo} — ${a.alertasDuplicado.join(" | ")}</li>`).join("")}</ul>`;
     } else {
-      cajaAlertaDup.className = "hidden";
-      cajaAlertaDup.innerHTML = "";
+      cajaAlerta.className = "hidden";
     }
   }
 
-  if (gridResumenDias) {
-    gridResumenDias.innerHTML = Object.values(gruposPorFecha).map((g) => `
-      <div class="bg-indigo-50/60 border border-indigo-200 rounded-xl p-3.5 space-y-2">
-        <div class="flex items-center justify-between border-b border-indigo-200/70 pb-1.5">
+  if (gridDias) {
+    gridDias.innerHTML = Object.values(grupos).map((g) => `
+      <div class="border border-indigo-200 rounded-xl bg-indigo-50/30 shadow-xs overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-3 border-b border-indigo-100 bg-white/80">
           <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded bg-indigo-600 text-white font-extrabold text-xs uppercase">${escapeHtml(g.dia)}</span>
-            <span class="font-bold text-slate-800 text-xs">${escapeHtml(g.fecha)}</span>
+            <span class="px-2.5 py-1 bg-indigo-600 text-white rounded-md text-[10px] font-black uppercase tracking-wider">${g.dia}</span>
+            <span class="font-bold text-slate-800 text-xs">${g.fecha}</span>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] font-semibold text-indigo-700">${g.items.length} serv.</span>
-            ${g.subtotalGs > 0 ? `<span class="text-xs font-extrabold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">Total: ${formatearGuaranies(g.subtotalGs)}</span>` : ""}
+          <div class="text-right">
+            <span class="text-xs font-semibold text-indigo-700">${g.items.length} serv.</span>
+            ${g.subtotal > 0 ? `<span class="ml-2 text-xs font-extrabold text-emerald-700">${formatearGuaranies(g.subtotal)}</span>` : ""}
           </div>
         </div>
-        <ul class="space-y-1.5 text-xs text-slate-700">
-          ${g.items.map((it) => {
-            const tieneDup = it.alertasDuplicado && it.alertasDuplicado.length > 0;
-            return `
-              <li class="flex items-start justify-between gap-2 ${tieneDup ? "bg-amber-100/90 border-amber-400" : "bg-white/80 border-indigo-100"} p-2 rounded-lg border">
-                <div>
-                  <strong class="text-slate-900">#${it.idx + 1} · ${escapeHtml(it.marca)} · ${escapeHtml(it.modelo)}</strong>
-                  <span class="block text-slate-700">${escapeHtml(it.trabajo)}</span>
-                  <span class="text-[10px] text-indigo-700 font-semibold block">${escapeHtml(it.intervencion)}</span>
-                  ${it.notas ? `<span class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">Cliente: ${escapeHtml(it.notas)}</span>` : ""}
-                  ${tieneDup ? `<span class="text-[10px] font-extrabold text-rose-700 block mt-0.5">⚠️ ${escapeHtml(it.alertasDuplicado.map((a) => a.mensaje).join(" | "))}</span>` : ""}
-                </div>
-                <div class="flex flex-col items-end gap-1 shrink-0">
-                  <span class="font-extrabold text-emerald-700 whitespace-nowrap">${escapeHtml(it.precio || "-")}</span>
-                  <button type="button" onclick="window.quitarFilaDeLote(${it.idx})" class="text-[10px] px-1.5 py-0.5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold cursor-pointer">Quitar</button>
-                </div>
-              </li>`;
-          }).join("")}
+        <ul class="p-2.5 space-y-2">
+          ${g.items.map((it) => `
+            <li class="flex flex-col bg-white p-2.5 rounded-lg border ${it.alertasDuplicado?.length ? "border-amber-400 bg-amber-50/40" : "border-slate-200"} relative">
+              <div class="flex justify-between items-start gap-2 mb-1">
+                <span class="text-[11px] font-bold text-slate-900 leading-tight">#${it.idx + 1} · ${it.marca} · ${it.modelo}</span>
+                <span class="text-[11px] font-extrabold ${it.precio ? "text-emerald-700" : "text-slate-400"}">${it.precio || "-"}</span>
+              </div>
+              <span class="text-[11px] text-slate-600 mb-1 pr-14">${it.trabajo}</span>
+              ${it.cliente ? `<span class="text-[10px] font-bold text-teal-700 mb-1">Cliente: ${it.cliente}</span>` : ""}
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] font-semibold text-indigo-600">${it.intervencion}</span>
+                <button type="button" onclick="window.quitarFilaDeLote(${it.idx})" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded text-[10px] font-bold transition cursor-pointer">Quitar</button>
+              </div>
+            </li>
+          `).join("")}
         </ul>
       </div>
     `).join("");
+    document.getElementById("contenedor-resumen-dias").classList.remove("hidden");
   }
 
-  const textoTotalGs = sumaTotalLote > 0 ? ` · Total: ${formatearGuaranies(sumaTotalLote)}` : "";
-  const textoClientes = conClienteCount > 0 ? ` · ${conClienteCount} con cliente` : "";
-  if (resumen) resumen.textContent = `¡${loteTemporal.length} servicio(s) en vista previa${textoTotalGs}${textoClientes}!`;
+  tbody.innerHTML = loteTemporal.map((item, idx) => `
+    <tr class="${item.alertasDuplicado?.length ? "bg-amber-50/60" : "hover:bg-slate-50"} border-b border-slate-100">
+      <td class="py-2.5 px-4 whitespace-nowrap"><div class="font-bold text-teal-700">#${idx + 1} · ${item.fecha}</div><div class="text-[10px] font-extrabold uppercase text-indigo-600">${item.diaSemana}</div></td>
+      <td class="py-2.5 px-4 font-medium text-slate-700">${item.categoria}</td>
+      <td class="py-2.5 px-4"><strong>${item.marca}</strong><br/><span class="text-[11px] text-slate-500">${item.modelo}</span></td>
+      <td class="py-2.5 px-4 text-indigo-700 font-semibold text-[11px] max-w-[140px]">${item.intervencion}</td>
+      <td class="py-2.5 px-4 text-slate-800 text-xs">${item.trabajo}</td>
+      <td class="py-2.5 px-4 text-center font-black text-emerald-700 whitespace-nowrap">${item.precio || "-"}</td>
+      <td class="py-2.5 px-4 text-center whitespace-nowrap">${item.cliente ? `<span class="inline-block px-2 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold">${item.cliente}</span>` : `<span class="text-slate-400">-</span>`}</td>
+      <td class="py-2.5 px-4 text-center"><button type="button" onclick="window.quitarFilaDeLote(${idx})" class="text-[10px] px-2.5 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold transition cursor-pointer">Quitar</button></td>
+    </tr>
+  `).join("");
 
-  if (tbodyPreview) {
-    tbodyPreview.innerHTML = loteTemporal.map((item, idx) => {
-      const tieneDup = item.alertasDuplicado && item.alertasDuplicado.length > 0;
-      return `
-        <tr class="${tieneDup ? "bg-amber-50 hover:bg-amber-100/70" : "hover:bg-slate-50"}">
-          <td class="py-2 px-3 whitespace-nowrap">
-            <div class="font-bold text-teal-700">#${idx + 1} · ${escapeHtml(item.fecha)}</div>
-            <div class="text-[10px] font-extrabold uppercase text-indigo-600">${escapeHtml(item.diaSemana)}</div>
-          </td>
-          <td class="py-2 px-3 font-medium">${escapeHtml(item.categoria)}</td>
-          <td class="py-2 px-3"><strong>${escapeHtml(item.marca)}</strong> · ${escapeHtml(item.modelo)}</td>
-          <td class="py-2 px-3 text-indigo-700 font-semibold">${escapeHtml(item.intervencion)}</td>
-          <td class="py-2 px-3 text-slate-800">
-            <div>${escapeHtml(item.trabajo)}</div>
-            ${tieneDup ? `<span class="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-200 text-amber-950 text-[10px] font-extrabold">⚠️ ${escapeHtml(item.alertasDuplicado.map((a) => a.mensaje).join(" | "))}</span>` : ""}
-          </td>
-          <td class="py-2 px-3 text-right whitespace-nowrap">
-            <input
-              type="text"
-              value="${escapeHtml(item.precio || "")}"
-              placeholder="Ej. 50.000"
-              onchange="window.actualizarCampoLote(${idx}, 'precio', this.value)"
-              class="w-24 text-right text-xs font-extrabold text-emerald-800 bg-emerald-50/60 border border-emerald-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-          </td>
-          <td class="py-2 px-3 whitespace-nowrap">
-            <div class="flex items-center justify-between gap-1.5">
-              <input
-                type="text"
-                value="${escapeHtml(item.notas || "")}"
-                placeholder="Cliente..."
-                onchange="window.actualizarCampoLote(${idx}, 'notas', this.value)"
-                class="w-24 text-xs font-semibold text-teal-900 bg-teal-50/50 border border-teal-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-teal-500"
-              />
-              <button type="button" onclick="window.quitarFilaDeLote(${idx})" class="text-[11px] px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold cursor-pointer">Quitar</button>
-            </div>
-          </td>
-        </tr>`;
-    }).join("");
-  }
-
-  contResumenDias?.classList.remove("hidden");
-  contPreview?.classList.remove("hidden");
-  if (btnGuardarLote) btnGuardarLote.disabled = false;
-  inicializarIconos();
+  document.getElementById("resumen-lote").textContent = `¡${loteTemporal.length} servicio(s) en vista previa!${totalGs > 0 ? ` · Total: ${formatearGuaranies(totalGs)}` : ""}`;
+  document.getElementById("contenedor-preview-lote").classList.remove("hidden");
+  btn.disabled = false;
 }
-
-window.abrirModalCargaLote = function () {
-  document.getElementById("inp-lunes-lote").value = obtenerLunesActualYYYYMMDD();
-  document.getElementById("inp-texto-lote").value = "";
-  document.getElementById("contenedor-preview-lote")?.classList.add("hidden");
-  document.getElementById("contenedor-resumen-dias")?.classList.add("hidden");
-  const cajaAlertaDup = document.getElementById("alerta-duplicados-lote");
-  if (cajaAlertaDup) cajaAlertaDup.className = "hidden";
-  document.getElementById("resumen-lote").textContent = "";
-  document.getElementById("btn-guardar-lote").disabled = true;
-  loteTemporal = [];
-  mostrarModal("modal-lote");
-  inicializarIconos();
-};
-
-window.cerrarModalLote = function () {
-  ocultarModal("modal-lote");
-};
-
-window.analizarLote = function () {
-  const texto = document.getElementById("inp-texto-lote").value.trim();
-  const lunesVal = document.getElementById("inp-lunes-lote").value || obtenerLunesActualYYYYMMDD();
-  if (!texto) return alert("Pega primero la lista de servicios.");
-
-  loteTemporal = procesarTextoLote(texto, lunesVal);
-  if (loteTemporal.length === 0) {
-    alert("No se detectaron líneas de servicio válidas.");
-    return;
-  }
-  renderizarPreviewLote();
-};
 
 window.quitarFilaDeLote = function (idx) {
   loteTemporal.splice(idx, 1);
@@ -2021,21 +1290,12 @@ window.quitarFilaDeLote = function (idx) {
 
 window.guardarLoteConfirmado = async function () {
   if (!loteTemporal.length) return;
-
-  const repetidosActivos = loteTemporal.filter((it) => it.alertasDuplicado && it.alertasDuplicado.length > 0);
-  if (repetidosActivos.length > 0) {
-    const listaAlerta = repetidosActivos
-      .map((r) => `• ${r.fecha} (${r.diaSemana}): ${r.marca} ${r.modelo} - ${r.trabajo}`)
-      .join("\n");
-    const ok = confirm(
-      `⚠️ ATENCIÓN: Estás por guardar ${repetidosActivos.length} servicio(s) repetido(s) en la misma fecha:\n\n` +
-      `${listaAlerta}\n\n` +
-      `¿Confirmas que son dispositivos distintos (Aceptar) o cancelar para quitar alguno?`
-    );
-    if (!ok) return;
+  const reps = loteTemporal.filter((it) => it.alertasDuplicado?.length);
+  if (reps.length > 0) {
+    if (!confirm(`⚠️ Hay ${reps.length} posible(s) repetido(s). ¿Deseas guardarlos igual?`)) return;
   }
 
-  const nuevosConID = loteTemporal.map((item, idx) => ({
+  const nuevos = loteTemporal.map((item, idx) => ({
     id: generarNuevoID(idx + 1),
     fecha: item.fecha,
     categoria: item.categoria,
@@ -2044,65 +1304,176 @@ window.guardarLoteConfirmado = async function () {
     intervencion: item.intervencion,
     trabajo: item.trabajo,
     repuestos: item.repuestos,
-    precio: formatearGuaranies(item.precio) || "",
+    precio: item.precio,
+    tecnico: TECNICO_NOMBRE,
     estado: "Entregado",
-    notas: item.notas || "",
-    tecnico: TECNICO_NOMBRE
+    notas: item.cliente || ""
   }));
 
-  const nuevosNorm = normalizarRegistros(nuevosConID);
+  const nuevosNorm = normalizarRegistros(nuevos);
   servicios.push(...nuevosNorm);
   servicios = ordenarPorFechaYNumero(servicios);
   localStorage.setItem(CACHE_LOCAL_KEY, JSON.stringify(servicios));
   poblarSelectores();
   aplicarFiltros();
+  if (bovedaDesbloqueada) renderizarPanelIngresos();
   ocultarModal("modal-lote");
 
   document.body.style.cursor = "wait";
-  const res = await guardarLoteSupabase(nuevosNorm);
+  const ok = await guardarLoteSupabase(nuevosNorm);
   document.body.style.cursor = "default";
-  alert(res.ok
-    ? `¡Se guardaron en Supabase ${nuevosNorm.length} servicio(s) correctamente!`
-    : `Se guardaron localmente ${nuevosNorm.length} servicio(s), pero hubo un error al subir a Supabase.`
+  alert(ok
+    ? `¡Se guardaron en Supabase ${nuevosNorm.length} servicio(s)!`
+    : `Se guardaron localmente ${nuevosNorm.length} servicio(s), pero falló el envío a Supabase.`
   );
 };
 
 // ============================================================================
+// BÓVEDA DE INGRESOS (PIN: 1212)
+// ============================================================================
+window.abrirBoveda = function () {
+  if (bovedaDesbloqueada) {
+    renderizarPanelIngresos();
+    mostrarModal("modal-ingresos");
+  } else {
+    document.getElementById("inp-pin-ingresos").value = "";
+    document.getElementById("error-pin-ingresos").classList.add("hidden");
+    mostrarModal("modal-pin-ingresos");
+    setTimeout(() => document.getElementById("inp-pin-ingresos")?.focus(), 60);
+  }
+};
+
+window.cerrarPinBoveda = function () { ocultarModal("modal-pin-ingresos"); };
+window.cerrarBoveda = function () { ocultarModal("modal-ingresos"); };
+window.bloquearBoveda = function () {
+  bovedaDesbloqueada = false;
+  ocultarModal("modal-ingresos");
+};
+
+window.procesarPinBoveda = function (e) {
+  e.preventDefault();
+  const inp = document.getElementById("inp-pin-ingresos");
+  if (inp.value.trim() === PIN_INGRESOS) {
+    bovedaDesbloqueada = true;
+    ocultarModal("modal-pin-ingresos");
+    renderizarPanelIngresos();
+    mostrarModal("modal-ingresos");
+  } else {
+    document.getElementById("error-pin-ingresos").classList.remove("hidden");
+    inp.value = "";
+    inp.focus();
+  }
+};
+
+function renderizarPanelIngresos() {
+  let totalGs = 0;
+  let totalConPrecio = 0;
+  const pSem = {};
+  const pMes = {};
+  const pDia = {};
+  const pCat = {};
+
+  servicios.forEach((s) => {
+    const monto = s._monto;
+    if (!pSem[s._semanaKey]) pSem[s._semanaKey] = { key: s._semanaKey, label: s._semanaLabel, totalGs: 0, totalServicios: 0, cobrados: 0 };
+    if (!pMes[s._mesKey]) pMes[s._mesKey] = { key: s._mesKey, label: s._mesLabel, totalGs: 0, totalServicios: 0, cobrados: 0 };
+    if (!pDia[s.fecha]) pDia[s.fecha] = { fecha: s.fecha, dia: s._dia, timestamp: s._timestamp, totalGs: 0, totalServicios: 0, cobrados: 0 };
+    if (!pCat[s.categoria]) pCat[s.categoria] = { categoria: s.categoria, totalGs: 0, totalServicios: 0, cobrados: 0 };
+
+    pSem[s._semanaKey].totalServicios++;
+    pMes[s._mesKey].totalServicios++;
+    pDia[s.fecha].totalServicios++;
+    pCat[s.categoria].totalServicios++;
+
+    if (monto > 0) {
+      totalGs += monto;
+      totalConPrecio++;
+      pSem[s._semanaKey].totalGs += monto; pSem[s._semanaKey].cobrados++;
+      pMes[s._mesKey].totalGs += monto; pMes[s._mesKey].cobrados++;
+      pDia[s.fecha].totalGs += monto; pDia[s.fecha].cobrados++;
+      pCat[s.categoria].totalGs += monto; pCat[s.categoria].cobrados++;
+    }
+  });
+
+  const lSem = Object.values(pSem).sort((a, b) => b.key.localeCompare(a.key));
+  const lMes = Object.values(pMes).sort((a, b) => b.key.localeCompare(a.key));
+  const lDia = Object.values(pDia).sort((a, b) => b.timestamp - a.timestamp);
+  const lCat = Object.values(pCat).sort((a, b) => b.totalGs - a.totalGs);
+
+  const mSem = [...lSem].sort((a, b) => b.totalGs - a.totalGs || b.totalServicios - a.totalServicios)[0] || null;
+  const mMes = [...lMes].sort((a, b) => b.totalGs - a.totalGs || b.totalServicios - a.totalServicios)[0] || null;
+  const mDia = [...lDia].sort((a, b) => b.totalGs - a.totalGs || b.totalServicios - a.totalServicios)[0] || null;
+
+  document.getElementById("fin-ingreso-total").textContent = formatearGuaranies(totalGs) || "0 Gs";
+  document.getElementById("fin-ingreso-total-sub").textContent = `${totalConPrecio} servicio(s) con monto de ${servicios.length} registrados`;
+  document.getElementById("fin-promedio-ticket").textContent = totalConPrecio > 0 ? formatearGuaranies(Math.round(totalGs / totalConPrecio)) : "0 Gs";
+
+  const sSem = document.getElementById("fin-select-semana");
+  if (sSem) {
+    const prev = sSem.value;
+    sSem.innerHTML = lSem.map((s) => `<option value="${s.key}">${s.label} (${s.totalServicios} serv. · ${formatearGuaranies(s.totalGs) || "0 Gs"})</option>`).join("");
+    sSem.value = prev && lSem.some((x) => x.key === prev) ? prev : (lSem[0]?.key || "");
+    const obj = lSem.find((x) => x.key === sSem.value) || lSem[0];
+    if (obj) {
+      document.getElementById("fin-ingreso-semanal").textContent = formatearGuaranies(obj.totalGs) || "0 Gs";
+      document.getElementById("fin-ingreso-semanal-sub").textContent = `${obj.cobrados} cobrado(s) de ${obj.totalServicios} servicio(s) en esa semana`;
+    }
+  }
+
+  const sMes = document.getElementById("fin-select-mes");
+  if (sMes) {
+    const prev = sMes.value;
+    sMes.innerHTML = lMes.map((m) => `<option value="${m.key}">${m.label} (${m.totalServicios} serv. · ${formatearGuaranies(m.totalGs) || "0 Gs"})</option>`).join("");
+    sMes.value = prev && lMes.some((x) => x.key === prev) ? prev : (lMes[0]?.key || "");
+    const obj = lMes.find((x) => x.key === sMes.value) || lMes[0];
+    if (obj) {
+      document.getElementById("fin-ingreso-mensual").textContent = formatearGuaranies(obj.totalGs) || "0 Gs";
+      document.getElementById("fin-ingreso-mensual-sub").textContent = `${obj.cobrados} cobrado(s) de ${obj.totalServicios} servicio(s) en ese mes`;
+    }
+  }
+
+  if (mSem) {
+    document.getElementById("fin-mejor-semana-monto").textContent = formatearGuaranies(mSem.totalGs) || "0 Gs";
+    document.getElementById("fin-mejor-semana-nombre").textContent = `${mSem.label} · ${mSem.totalServicios} serv.`;
+  }
+  if (mMes) {
+    document.getElementById("fin-mejor-mes-monto").textContent = formatearGuaranies(mMes.totalGs) || "0 Gs";
+    document.getElementById("fin-mejor-mes-nombre").textContent = `${mMes.label} · ${mMes.totalServicios} serv.`;
+  }
+  if (mDia) {
+    document.getElementById("fin-mejor-dia-monto").textContent = formatearGuaranies(mDia.totalGs) || "0 Gs";
+    document.getElementById("fin-mejor-dia-nombre").textContent = `${mDia.fecha} (${mDia.dia}) · ${mDia.totalServicios} serv.`;
+  }
+
+  const cSem = document.getElementById("fin-lista-semanas");
+  if (cSem) cSem.innerHTML = lSem.map((s) => {
+    const rec = mSem && mSem.key === s.key && s.totalGs > 0;
+    return `<div class="p-3 rounded-xl border ${rec ? "bg-amber-50/70 border-amber-300" : "bg-slate-50 border-slate-200"} space-y-1.5"><div class="flex justify-between text-xs"><div class="flex items-center gap-1.5"><span class="font-extrabold text-slate-900">${s.label}</span>${rec ? `<span class="px-2 py-0.5 rounded-full bg-amber-400/30 text-amber-900 border border-amber-400 font-black text-[10px] uppercase">🏆 Mejor Semana</span>` : ""}</div><span class="font-black text-sm ${s.totalGs > 0 ? "text-emerald-700" : "text-slate-400"}">${formatearGuaranies(s.totalGs) || "0 Gs"}</span></div><div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${rec ? "bg-amber-500" : "bg-emerald-600"}" style="width: ${s.totalGs > 0 ? Math.max(6, Math.round((s.totalGs / (mSem.totalGs || 1)) * 100)) : 0}%"></div></div><div class="flex justify-between text-[11px] text-slate-500"><span>Servicios: <strong>${s.totalServicios}</strong></span><span>Con monto: <strong>${s.cobrados}</strong></span></div></div>`;
+  }).join("");
+
+  const cMes = document.getElementById("fin-lista-meses");
+  if (cMes) cMes.innerHTML = lMes.map((m) => {
+    const rec = mMes && mMes.key === m.key && m.totalGs > 0;
+    return `<div class="p-3 rounded-xl border ${rec ? "bg-emerald-50/70 border-emerald-300" : "bg-slate-50 border-slate-200"} space-y-1.5"><div class="flex justify-between text-xs"><div class="flex items-center gap-1.5"><span class="font-extrabold text-slate-900">${m.label}</span>${rec ? `<span class="px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 border border-emerald-400 font-black text-[10px] uppercase">🏆 Mejor Mes</span>` : ""}</div><span class="font-black text-sm ${m.totalGs > 0 ? "text-emerald-700" : "text-slate-400"}">${formatearGuaranies(m.totalGs) || "0 Gs"}</span></div><div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${rec ? "bg-emerald-600" : "bg-teal-600"}" style="width: ${m.totalGs > 0 ? Math.max(8, Math.round((m.totalGs / (mMes.totalGs || 1)) * 100)) : 0}%"></div></div><div class="flex justify-between text-[11px] text-slate-500"><span>Servicios: <strong>${m.totalServicios}</strong></span><span>Con monto: <strong>${m.cobrados}</strong></span></div></div>`;
+  }).join("");
+
+  const cCats = document.getElementById("fin-lista-categorias");
+  if (cCats) cCats.innerHTML = lCat.map((c) => `<div class="flex justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs"><div><span class="font-bold text-slate-800 block">${c.categoria}</span><span class="text-[11px] text-slate-500">${c.totalServicios} serv. (${c.cobrados} con monto)</span></div><span class="font-extrabold text-emerald-700">${formatearGuaranies(c.totalGs) || "0 Gs"}</span></div>`).join("");
+}
+
+// ============================================================================
 // MODAL SUPABASE, CSV Y EVENTOS DE FILTRO
 // ============================================================================
-window.abrirModalSupabase = function () {
-  const estadoTxt = document.getElementById("estado-migracion-texto");
-  if (estadoTxt) estadoTxt.textContent = `Actualmente tienes ${servicios.length} registros de Junior cargados en pantalla.`;
-  mostrarModal("modal-supabase");
-  inicializarIconos();
-};
-
-window.cerrarModalSupabase = function () {
-  ocultarModal("modal-supabase");
-};
+window.abrirModalDrive = function () { mostrarModal("modal-drive"); };
+window.cerrarModalDrive = function () { ocultarModal("modal-drive"); };
 
 window.exportarCSV = function () {
-  const encabezados = ["ID", "Fecha", "Día", "Categoría", "Marca", "Modelo", "Tipo de Intervención", "Trabajo Realizado", "Repuestos", "Precio (Gs)", "Estado", "Cliente / Notas"];
-  const filas = ultimosFiltrados.map((s) => [
-    s.id,
-    s.fecha,
-    s._dia || obtenerDiaSemana(s.fecha),
-    s.categoria,
-    s.marca,
-    s.modelo,
-    `"${String(s.intervencion).replace(/"/g, '""')}"`,
-    `"${String(s.trabajo).replace(/"/g, '""')}"`,
-    s.repuestos,
-    s.precio || "",
-    s.estado,
-    `"${String(s.notas || "").replace(/"/g, '""')}"`
-  ]);
-  const csvContent = "\uFEFF" + [encabezados.join(";"), ...filas.map((f) => f.join(";"))].join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
+  const enc = ["ID", "Fecha", "Categoría", "Marca", "Modelo", "Intervención", "Trabajo Realizado", "Repuestos", "Precio (Gs)", "Notas"];
+  const fil = ultimosFiltrados.map((s) => [s.id, s.fecha, s.categoria, s.marca, s.modelo, `"${s.intervencion}"`, `"${s.trabajo.replace(/"/g, '""')}"`, s.repuestos, s.precio || "", `"${s.notas.replace(/"/g, '""')}"`]);
+  const blob = new Blob(["\uFEFF" + [enc.join(";"), ...fil.map((f) => f.join(";"))].join("\n")], { type: "text/csv;charset=utf-8;" });
   const a = document.createElement("a");
-  a.href = url;
-  a.download = "BD_Reparaciones_Junior_Almiron_Supabase.csv";
+  a.href = URL.createObjectURL(blob);
+  a.download = "BD_Angel_Villalba_Supabase.csv";
   a.click();
 };
 
@@ -2142,21 +1513,15 @@ function configurarEventos() {
       renderizarVista(ultimosFiltrados);
     }
   });
+
+  document.getElementById("btn-limpiar")?.addEventListener("click", () => {
+    ["filtro-texto", "filtro-categoria", "filtro-marca", "filtro-intervencion", "filtro-fecha"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    aplicarFiltros();
+  });
+
+  document.getElementById("fin-select-semana")?.addEventListener("change", renderizarPanelIngresos);
+  document.getElementById("fin-select-mes")?.addEventListener("change", renderizarPanelIngresos);
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-  inicializarIconos();
-  configurarEventos();
-
-  if (sessionStorage.getItem(AUTH_SESSION_KEY) === "true") {
-    const login = document.getElementById("pantalla-login");
-    const app = document.getElementById("app-contenido");
-    if (login) login.style.display = "none";
-    if (app) {
-      app.classList.remove("hidden");
-      app.style.display = "flex";
-    }
-    cargarBaseDeDatos();
-    inicializarIconos();
-  }
-});
